@@ -148,6 +148,9 @@ canvas{display:block;width:100%;aspect-ratio:16/9;background:#1d2b53;image-rende
 .sheet{width:min(680px,100%);max-height:calc(100vh - 32px);overflow:auto;background:var(--paper);border:3px solid var(--ink);border-radius:16px;box-shadow:5px 5px 0 var(--ink);padding:14px 16px 16px}
 .sheet-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
 .sheet h2{margin:0;font-size:20px;font-weight:900}
+.card-img{display:block;width:100%;max-height:min(62vh,620px);object-fit:contain;margin:10px 0 4px;border:2px solid var(--ink);border-radius:10px;background:var(--page)}
+.card-go{display:flex;flex-wrap:wrap;gap:10px;justify-content:flex-end;margin-top:10px}
+.card-go .said{flex-basis:100%;margin:0}
 .x{border:2px solid var(--ink);background:var(--paper);border-radius:50%;width:34px;height:34px;font-size:20px;line-height:1;cursor:pointer;font-weight:700}
 .sheet .sub small{display:block;font-size:12.5px}
 .legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;color:var(--muted);margin:6px 0 8px}
@@ -216,6 +219,19 @@ footer a{font-weight:700;color:var(--ink)}
     </div>
   </div>
 
+  <div class="ovl" id="card" hidden role="dialog" aria-modal="true" aria-labelledby="card-h">
+    <div class="sheet">
+      <div class="sheet-top"><h2 id="card-h">分享成績圖</h2><button class="x" id="card-x" type="button" aria-label="關閉">×</button></div>
+      <img class="card-img" id="card-img" alt="">
+      <div class="card-go">
+        <button class="btn alt" id="card-copy" type="button">複製文字</button>
+        <button class="btn alt" id="card-dl" type="button">下載圖片</button>
+        <button class="btn" id="card-share" type="button" hidden>分享…</button>
+        <p class="said" id="card-said" role="status"></p>
+      </div>
+    </div>
+  </div>
+
   <footer>
     題目由 AI 根據逐字稿出題、主持人審核；逐字稿為自動整理，題目或答案如果有誤，歡迎到節目社群告訴我們。<br>
     冒險進度只存在你自己的瀏覽器。完整節目請到 <a href="https://spiritboyaway.firstory.cc" target="_blank" rel="noopener">Firstory</a> 或各大 Podcast 平台收聽。<br>
@@ -248,13 +264,15 @@ const MONSTERS = [
 ];
 let DB = null, QUESTIONS = [];
 // 存檔：lv 等級、exp 經驗值、floor 目前第幾關、best 最多通過幾關、seen 看過的題目、
-//       items 道具數量、perks 天賦、eps 點亮的集數（集數足跡）、lastQuote 上次過關的語錄
-let SAVE = { lv: 1, exp: 0, floor: 1, best: 0, seen: {}, items: {}, perks: {}, eps: {}, lastQuote: -1, stat: {} };
+//       items 道具數量、perks 天賦、eps 點亮的集數（集數足跡）、lastQuote 上次過關的語錄、combo 最高連擊
+let SAVE = { lv: 1, exp: 0, floor: 1, best: 0, seen: {}, items: {}, perks: {}, eps: {}, lastQuote: -1, stat: {}, combo: 0 };
 try { Object.assign(SAVE, JSON.parse(localStorage.getItem(STORE) || "{}")); } catch (e) {}
 ["seen", "items", "perks", "eps", "stat"].forEach(k => { if (!SAVE[k] || typeof SAVE[k] !== "object") SAVE[k] = {}; });
 ["lv", "floor"].forEach(k => { SAVE[k] = Math.max(1, Math.floor(+SAVE[k]) || 1); });
-["exp", "best"].forEach(k => { SAVE[k] = Math.max(0, Math.floor(+SAVE[k]) || 0); });
+["exp", "best", "combo"].forEach(k => { SAVE[k] = Math.max(0, Math.floor(+SAVE[k]) || 0); });
 function persist(){ try { localStorage.setItem(STORE, JSON.stringify(SAVE)); } catch (e) {} }
+// 遊戲事件（給畫面特效用）：spawn、ask、answer、levelup、down、floor、update、drawStart／drawBg／drawFx／drawEnd
+const HOOK = { list: [], on(f){ this.list.push(f); }, emit(ev, a){ for (const f of this.list){ try { f(ev, a); } catch (e) { console.error(e); } } } };
 
 /* =====================================================================
    音效：全部用瀏覽器內建的 Web Audio 即時合成（像紅白機的方波、雜訊），不需要音檔
@@ -499,7 +517,7 @@ function spawn(){
   const base = MONSTERS[(f - 1 + G.idx * 2) % MONSTERS.length];
   const hp = boss ? Math.min(BAL.bossCap, BAL.bossBase + Math.floor((f - 1) / BAL.bossStep)) : Math.min(BAL.monCap, 1 + Math.floor((f - 1) / BAL.monStep));
   G.mon = { ...base, boss, name: boss ? "頭目・" + base.name : base.name, hp, max: hp, x: W + 30, hurt: 0, dead: 0 };
-  G.phase = "approach"; SFX.monster(boss); if (boss) MUSIC.play(bossBgmFor(SAVE.floor));
+  G.phase = "approach"; SFX.monster(boss); HOOK.emit("spawn", { boss }); if (boss) MUSIC.play(bossBgmFor(SAVE.floor));
 }
 function float(text, x, y, color){ G.fx.push({ text, x, y, t: 0, color }); }
 function say(html){ $("#dlg").innerHTML = html; renderItems(); }
@@ -584,8 +602,9 @@ function title(){
     <p class="sub">隊伍會自動前進，遇到怪物就出題。<b>答對</b>就攻擊，<b>答錯</b>會被打；連續答對會<b>暴擊</b>。打倒怪物拿經驗值，有機會掉<b>寶箱</b>，升級時可以選一個<b>天賦</b>。血歸零要重打這一關，等級和道具都還在。</p>
     <p class="sub">題庫 <b>${QUESTIONS.length}</b> 題，來自 <b>${DB.episodes}</b> 集${SAVE.best ? `　｜　你最多通過 <b>${SAVE.best}</b> 關　<span class="rank">${esc(r.name)}</span>` : ""}</p>
     <div class="go left"><button class="btn" id="go" type="button">${has ? `繼續冒險（第 ${SAVE.floor} 關・LV ${SAVE.lv}）` : "開始冒險"}</button>
+    ${SAVE.best ? `<button class="btn alt" id="sh" type="button">分享成績圖</button>` : ""}
     ${has ? `<button class="link" id="reset" type="button">從第 1 關重新開始</button>` : ""}</div>`);
-  $("#go").onclick = startFloor;
+  $("#go").onclick = startFloor; if ($("#sh")) $("#sh").onclick = () => openCard("best", SAVE.best);
   if ($("#reset")) $("#reset").onclick = () => {
     say(`<h2 class="msg">確定要重新開始嗎？</h2><p class="sub">等級、天賦、道具會重來，從第 1 關開始。最多通過 ${SAVE.best} 關的紀錄和集數足跡會保留。</p>
       <div class="go left"><button class="btn" id="go" type="button">重新開始</button><button class="btn alt" id="back" type="button">取消</button></div>`);
@@ -596,6 +615,7 @@ function title(){
 function startFloor(){
   SFX.start(); MUSIC.play(bgmFor(SAVE.floor));
   G.idx = 0; G.mon = null; G.cur = null; G.hp = maxHp(); G.down = 0; G.fx = []; G.combo = 0; G.chest = null; G.phase = "walk"; G.t = 0; persist(); hud();
+  HOOK.emit("floor", { f: SAVE.floor });
   say(`<h2 class="msg">第 ${SAVE.floor} 關・${sceneFor(SAVE.floor).name}，出發！</h2><p class="sub">這一關有 ${PER_FLOOR} 隻怪物，最後一隻是頭目。</p>`); focusMsg();
 }
 
@@ -605,7 +625,7 @@ function ask(){
   const c = G.cur;
   say(`<p class="who"><b>${esc(G.mon.name)}</b> 出題！　出自 ${esc(c.q.et)}</p><h2 class="q" tabindex="-1">${esc(c.q.q)}</h2>
     <div class="opts">${c.opts.map((o, i) => `<button class="opt" type="button" data-i="${i}"><span class="k">${"ABCD"[i]}</span><span>${esc(o.t)}</span></button>`).join("")}</div>`);
-  focusMsg(); reveal($("#dlg")); SFX.ask();
+  focusMsg(); reveal($("#dlg")); SFX.ask(); HOOK.emit("ask");
 }
 function answer(i){
   const cur = G.cur; if (!cur || cur.picked != null || G.phase !== "ask" || cur.opts[i].gone) return;
@@ -615,10 +635,11 @@ function answer(i){
   // 匿名統計答錯率：每位玩家每題只記第一次作答，用了刪去法或問主持人的不算（只送「題目代號＋對或錯」，不記是誰）
   if (!SAVE.stat[q.id]){ SAVE.stat[q.id] = 1; if (!cur.used.cut && !cur.used.ask) countAnswer(q, ok); }
   if (ok){
-    G.combo++; G.comboT = 1.2;
+    G.combo++; G.comboT = 1.2; if (G.combo > SAVE.combo) SAVE.combo = G.combo;
     const crit = G.combo >= critAt(), dmg = crit ? 2 : 1;
     G.heroLunge = 1; m.hurt = 1; m.hp = Math.max(0, m.hp - dmg); float((crit ? "CRIT -" : "-") + dmg, m.x, GROUND - 40, crit ? "#ff7b1c" : "#ffe45c"); G.hit = { x: m.x - 8, y: GROUND - 20, t: 0, big: crit };
     if (crit) SFX.crit(G.combo); else SFX.hit(G.combo);
+    HOOK.emit("answer", { ok: true, crit, combo: G.combo, killed: m.hp <= 0 });
     if (crit) extra.push(`<b class="crit">${G.combo} 連擊・暴擊！</b>造成 2 點傷害。`);
     else if (G.combo > 1) extra.push(`${G.combo} 連擊！再答對 ${critAt() - G.combo} 題就會暴擊。`);
     if (!SAVE.eps[q.ep]){ SAVE.eps[q.ep] = 1; SFX.sparkle(.25); extra.push(`<b class="new">點亮新集數！</b>集數足跡 ${footStats().lit}/${footStats().total}`); }
@@ -626,7 +647,7 @@ function answer(i){
       m.dead = 0.001; SFX.defeat();
       const bonus = 1 + Math.min(G.combo, 10) * .05 + perk("exp") * .15;
       const gain = Math.round(((m.boss ? 20 : 10) + q.lv * 2) * bonus); SAVE.exp += gain; float("+" + gain + " EXP", HERO_X, GROUND - 48, "#fee761");
-      while (SAVE.exp >= needExp()){ SAVE.exp -= needExp(); SAVE.lv++; G.hp = maxHp(); G.levelUp = 1.6; G.pendingPerks++; SFX.levelup(); float("LEVEL UP!", HERO_X + 14, GROUND - 62, "#63c74d"); }
+      while (SAVE.exp >= needExp()){ SAVE.exp -= needExp(); SAVE.lv++; G.hp = maxHp(); G.levelUp = 1.6; G.pendingPerks++; SFX.levelup(); HOOK.emit("levelup"); float("LEVEL UP!", HERO_X + 14, GROUND - 62, "#63c74d"); }
       // 寶箱：頭目必掉道具；一般怪物有機率掉 1 個
       const drops = m.boss ? BAL.bossDrops : (Math.random() < BAL.drop + perk("drop") * BAL.dropPerk ? 1 : 0);
       if (drops){ const got = []; for (let k = 0; k < drops; k++){ const id = rollItem(); giveItem(id, 1); got.push(ITEMS.find(x => x.id === id).name); }
@@ -636,8 +657,9 @@ function answer(i){
     const lost = G.combo; G.combo = 0;
     G.monLunge = 1;
     if (cur.used.charm){ SFX.guard(); float("GUARD", HERO_X, GROUND - 44, "#8ccbe6"); G.hit = { x: HERO_X + 8, y: GROUND - 20, t: 0 }; extra.push("護身符擋下了攻擊！"); }
-    else { SFX.hurt(); G.heroHurt = 1; const d = monDmg(); G.hp = Math.max(0, G.hp - d); float("-" + d, HERO_X, GROUND - 44, "#ffffff"); G.hit = { x: HERO_X + 8, y: GROUND - 20, t: 0 }; if (G.hp <= 0){ G.down = 0.001; MUSIC.stop(); SFX.down(); } }
+    else { SFX.hurt(); G.heroHurt = 1; const d = monDmg(); G.hp = Math.max(0, G.hp - d); float("-" + d, HERO_X, GROUND - 44, "#ffffff"); G.hit = { x: HERO_X + 8, y: GROUND - 20, t: 0 }; if (G.hp <= 0){ G.down = 0.001; MUSIC.stop(); HOOK.emit("down"); SFX.down(); } }
     if (lost > 1) extra.push(`${lost} 連擊中斷了。`);
+    HOOK.emit("answer", { ok: false, guard: !!cur.used.charm, lost });
   }
   persist(); hud();
   document.querySelectorAll(".opt").forEach((b, k) => {
@@ -680,13 +702,13 @@ function proceed(){
     G.phase = "dead"; MUSIC.stop();
     say(`<h2 class="msg">隊伍倒下了……</h2><p class="sub">沒關係，等級、天賦和道具都還在。補滿血，重打第 ${SAVE.floor} 關吧！</p>
       <div class="go"><button class="btn alt" id="sh" type="button">分享紀錄</button><button class="btn" id="go" type="button">重打這一關</button></div><p class="said" id="said"></p>`);
-    $("#go").onclick = startFloor; $("#sh").onclick = share; $("#go").focus({ preventScroll: true }); return;
+    $("#go").onclick = startFloor; $("#sh").onclick = () => openCard("dead", SAVE.floor); $("#go").focus({ preventScroll: true }); return;
   }
   if (m && m.hp <= 0){
     G.mon = null; G.idx++;
     if (G.idx >= PER_FLOOR){
       const done = SAVE.floor, newBest = done > SAVE.best, before = rankOf(SAVE.best).name;
-      SAVE.best = Math.max(SAVE.best, done); SAVE.floor = done + 1; G.phase = "clear"; G.clearT = 0; MUSIC.stop(); SFX.clear();
+      SAVE.best = Math.max(SAVE.best, done); SAVE.floor = done + 1; G.phase = "clear"; G.clearT = 0; MUSIC.stop(); SFX.clear(); HOOK.emit("clear");
       const r = rankOf(SAVE.best), qt = pickQuote(); persist();
       const quoteHtml = qt ? `<figure class="quote"><img src="${qt.w === "二百五" ? "img/host-250.webp" : "img/host-pineapple.webp"}" alt=""><blockquote><p>「${esc(qt.q)}」</p>
         <footer>—— ${esc(qt.w)}・${esc(qt.et)}　<a href="https://spiritboyaway.github.io/podcast-search/?ep=${encodeURIComponent(qt.ep)}&t=${qt.t}" target="_blank" rel="noopener">▶ 聽這一段</a></footer></blockquote></figure>` : "";
@@ -694,7 +716,7 @@ function proceed(){
         ${quoteHtml}
         <p class="sub">目前 <b>LV ${SAVE.lv}</b>${newBest ? "，刷新個人紀錄！" : `，個人紀錄是通過 ${SAVE.best} 關。`}　稱號：<span class="rank">${esc(r.name)}</span>${newBest && r.name !== before ? "　← 新稱號！" : ""}</p>
         <div class="go"><button class="btn alt" id="sh" type="button">分享紀錄</button><button class="btn" id="go" type="button">前往第 ${SAVE.floor} 關 →</button></div><p class="said" id="said"></p>`);
-      $("#go").onclick = startFloor; $("#sh").onclick = share; hud(); $("#go").focus({ preventScroll: true }); return;
+      $("#go").onclick = startFloor; $("#sh").onclick = () => openCard("clear", done); hud(); $("#go").focus({ preventScroll: true }); return;
     }
     G.phase = "walk"; G.t = 0; G.cur = null;
     say(`<h2 class="msg">繼續前進……</h2><p class="sub">${G.idx === PER_FLOOR - 1 ? "前面有很強的氣息，頭目要來了！" : `這一關還有 ${PER_FLOOR - G.idx} 隻怪物。`}${G.combo > 1 ? `　目前 ${G.combo} 連擊中。` : ""}</p>`); return;
@@ -722,49 +744,136 @@ $("#foot").addEventListener("click", e => {
 });
 document.addEventListener("keydown", e => {
   if (!$("#foot").hidden){ if (e.key === "Escape") closeFoot(); return; }
+  if (!$("#card").hidden){ if (e.key === "Escape") closeCard(); return; }
   if (e.ctrlKey || e.metaKey || e.altKey || e.key.length !== 1) return;
   const k = "1234".indexOf(e.key) >= 0 ? "1234".indexOf(e.key) : "abcd".indexOf(e.key.toLowerCase());
   if (G.phase === "ask" && k >= 0){ e.preventDefault(); answer(k); }
 });
 
-/* ---------- 分享紀錄 ---------- */
+/* ---------- 分享成績圖 ---------- */
+// kind：clear 剛過關、dead 倒下、best 從標題畫面分享最高紀錄；floor 是圖上要畫的那一關
 function shareText(){ return `我在「神隱少年團 QA大冒險」通過了 ${SAVE.best} 關（LV ${SAVE.lv}）\n稱號：${rankOf(SAVE.best).name}\n你能闖到第幾關？ ${SITE_URL}`; }
-async function share(){
-  const said = $("#said"), btn = $("#sh"); btn.disabled = true; said.textContent = "製作圖片中…";
+// 把某一關的背景和兩位主角畫到一張 256×144 的小畫布（不影響遊戲畫面）
+function snapScene(floor){
+  const c = document.createElement("canvas"); c.width = W; c.height = H;
+  const keep = g; g = c.getContext("2d"); g.imageSmoothingEnabled = false;
   try {
-    const c = document.createElement("canvas"); c.width = 1080; c.height = 1080;
-    const g = c.getContext("2d"), INK = "#1b1a18", F = '"Noto Sans TC","Microsoft JhengHei","PingFang TC",sans-serif', r = rankOf(SAVE.best);
-    try { await Promise.all([document.fonts.load('900 60px "Noto Sans TC"', "神隱少年團QA大冒險通過關稱號" + r.name), document.fonts.load('900 60px "Noto Serif TC"', "隱" + r.name)]); } catch (e) {}
-    g.fillStyle = "#f4efe6"; g.fillRect(0, 0, 1080, 1080);
-    g.fillStyle = "rgba(27,26,24,.08)"; for (let y = 16; y < 1080; y += 30) for (let x = 16; x < 1080; x += 30){ g.beginPath(); g.arc(x, y, 2.4, 0, 7); g.fill(); }
-    g.fillStyle = "#edb65a"; g.beginPath(); g.arc(120, 100, 54, 0, 7); g.fill();
-    g.fillStyle = "#fff"; g.font = '900 64px "Noto Serif TC",serif'; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText("隱", 120, 102);
-    g.fillStyle = INK; g.textAlign = "left"; g.font = "900 56px " + F; g.fillText("神隱少年團 QA大冒險", 196, 102);
-    // 把目前的像素畫面放大貼上（不做平滑，保持像素感）
-    g.fillStyle = INK; g.fillRect(72, 192, 960, 540); g.imageSmoothingEnabled = false; g.drawImage(cv, 60, 180, 960, 540);
-    g.lineWidth = 8; g.strokeStyle = INK; g.strokeRect(60, 180, 960, 540);
-    g.textAlign = "center"; g.fillStyle = INK; g.font = "900 68px " + F; g.fillText(`通過 ${SAVE.best} 關・LV ${SAVE.lv}`, 540, 806);
-    let fs = 64; g.font = `900 ${fs}px "Noto Serif TC",serif`;
-    while (g.measureText(r.name).width > 800 && fs > 36){ fs -= 4; g.font = `900 ${fs}px "Noto Serif TC",serif`; }
-    const rw = g.measureText(r.name).width; g.fillStyle = "#ffe45c"; g.fillRect(540 - rw / 2 - 16, 902, rw + 32, fs * .5);
-    g.fillStyle = INK; g.fillText(r.name, 540, 900);
-    g.font = "700 32px " + F; g.fillText("你能闖到第幾關？ " + SITE_URL.replace("https://", "").replace(/\/$/, ""), 540, 1012);
-    const blob = await new Promise(res => c.toBlob(res, "image/png"));
-    const file = new File([blob], "神隱少年團QA大冒險.png", { type: "image/png" });
-    if (matchMedia("(hover:none)").matches && navigator.canShare && navigator.canShare({ files: [file] })){
-      await navigator.share({ files: [file], text: shareText() }); said.textContent = "";
-    } else {
-      const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = file.name; document.body.appendChild(a); a.click(); a.remove();
-      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-      let copied = false; try { await navigator.clipboard.writeText(shareText()); copied = true; } catch (e) {}
-      said.textContent = "圖片已下載" + (copied ? "，文字也複製好了" : "") + "，貼到社群跟朋友比一比吧！";
-    }
-  } catch (e) { said.textContent = e && e.name === "AbortError" ? "" : "圖片製作失敗，可以直接截圖分享。"; }
-  btn.disabled = false;
+    sceneFor(floor).draw();
+    sprite(PAL[0], PAL_X - 12, GROUND - 32, 2, false);
+    sprite(HERO[0], HERO_X - 12, GROUND - 32, 2, false);
+  } catch (e) { console.error(e); }
+  finally { g = keep; }
+  return c;
 }
+// 成績圖：「神隱少年團 登錄證」（羊皮紙卡片、等級徽章 F～S、紅色認證印章）
+function cardRR(x, X, Y, w, h, r){ x.beginPath(); x.moveTo(X + r, Y); x.arcTo(X + w, Y, X + w, Y + h, r); x.arcTo(X + w, Y + h, X, Y + h, r); x.arcTo(X, Y + h, X, Y, r); x.arcTo(X, Y, X + w, Y, r); x.closePath(); }
+function cardFit(x, text, mk, size, max){ let s = size; x.font = mk(s); while (x.measureText(text).width > max && s > 14){ s -= 2; x.font = mk(s); } return s; }
+async function makeCard(kind, floor){
+  const CW = 1080, CH = 1350, c = document.createElement("canvas"); c.width = CW; c.height = CH; const x = c.getContext("2d");
+  const SANS = '"Noto Sans TC","Microsoft JhengHei","PingFang TC",sans-serif', SERIF = '"Noto Serif TC","PMingLiU",serif';
+  const BR = "#4a2f1b", GOLD = "#b8862f", PAPER = "#f1e2bf";
+  const r = rankOf(SAVE.best), fs = footStats(), titles = (DB && DB.titles) || [];
+  let ri = 0; titles.forEach((t, k) => { if (SAVE.best >= t.min) ri = k; });
+  const letter = SAVE.best >= 40 ? "S" : ["F", "E", "D", "C", "B", "A"][Math.min(ri, 5)];
+  floor = Math.max(1, floor || 1); const sc0 = sceneFor(floor), url = SITE_URL.replace("https://", "").replace(/\/$/, "");
+  try { await Promise.all([document.fonts.load(`900 60px "Noto Serif TC"`, "神隱少年團登錄證稱號等級踏破關數答過題目最高連擊聽過的集數主持人認證RANK" + letter + r.name),
+    document.fonts.load(`700 30px "Noto Serif TC"`, "稱號等級踏破關數答過題目最高連擊聽過的集數主持人二百五鳳梨索SPIRITBOYAWAYQA"),
+    document.fonts.load(`900 34px "Noto Sans TC"`, "你能闖到第幾關？" + url + sc0.name)]); } catch (e) {}
+  // 木頭桌面
+  x.fillStyle = "#5b3a22"; x.fillRect(0, 0, CW, CH);
+  for (let y = 0; y < CH; y += 90){ x.fillStyle = "rgba(0,0,0,.18)"; x.fillRect(0, y, CW, 4);
+    for (let k = 0; k < 6; k++){ x.fillStyle = "rgba(255,220,170,.05)"; x.fillRect(0, y + 14 + k * 12 + rnd(y + k) * 6, CW, 2); } }
+  const vg = x.createRadialGradient(540, 675, 300, 540, 675, 900); vg.addColorStop(0, "rgba(0,0,0,0)"); vg.addColorStop(1, "rgba(0,0,0,.55)"); x.fillStyle = vg; x.fillRect(0, 0, CW, CH);
+  // 卡片
+  x.save(); x.translate(540, 650); x.rotate(-.025);
+  const X = -460, Y = -570, w = 920, h = 1140;
+  x.fillStyle = "rgba(0,0,0,.45)"; cardRR(x, X + 16, Y + 22, w, h, 30); x.fill();
+  x.fillStyle = PAPER; cardRR(x, X, Y, w, h, 30); x.fill();
+  const pg = x.createRadialGradient(0, 0, 200, 0, 0, 760); pg.addColorStop(0, "rgba(255,255,255,0)"); pg.addColorStop(1, "rgba(120,70,20,.28)"); x.fillStyle = pg; cardRR(x, X, Y, w, h, 30); x.fill();
+  x.lineWidth = 8; x.strokeStyle = BR; cardRR(x, X + 22, Y + 22, w - 44, h - 44, 18); x.stroke();
+  x.lineWidth = 3; x.strokeStyle = GOLD; cardRR(x, X + 36, Y + 36, w - 72, h - 72, 12); x.stroke();
+  [[X + 36, Y + 36], [X + w - 36, Y + 36], [X + 36, Y + h - 36], [X + w - 36, Y + h - 36]].forEach(([cx, cy]) => { x.fillStyle = GOLD; x.save(); x.translate(cx, cy); x.rotate(Math.PI / 4); x.fillRect(-14, -14, 28, 28); x.fillStyle = PAPER; x.fillRect(-6, -6, 12, 12); x.restore(); });
+  x.textAlign = "center"; x.textBaseline = "alphabetic";
+  x.fillStyle = BR; x.font = `900 66px ${SERIF}`; x.fillText("神隱少年團　登錄證", 0, Y + 140);
+  x.fillStyle = GOLD; x.font = `700 22px ${SERIF}`; x.fillText("SPIRIT BOY AWAY  ·  QA ADVENTURE", 0, Y + 182);
+  x.fillStyle = BR; x.fillRect(X + 80, Y + 204, w - 160, 3);
+  // 肖像：該關的像素畫面（場景名稱放左上角，不擋到主角的腳）
+  const PX = X + 80, PY = Y + 240, PW = 440, PH = 330, sc = PW / 112, sy = 118 - PH / sc;
+  x.fillStyle = BR; x.fillRect(PX - 10, PY - 10, PW + 20, PH + 20); x.fillStyle = GOLD; x.fillRect(PX - 4, PY - 4, PW + 8, PH + 8);
+  x.imageSmoothingEnabled = false; x.drawImage(snapScene(floor), 8, sy, 112, PH / sc, PX, PY, PW, PH); x.imageSmoothingEnabled = true;
+  cardFit(x, sc0.name, s => `700 ${s}px ${SANS}`, 22, PW - 40); const nw = x.measureText(sc0.name).width;
+  x.fillStyle = "rgba(74,47,27,.85)"; x.fillRect(PX, PY, nw + 28, 40); x.fillStyle = PAPER; x.textAlign = "left"; x.fillText(sc0.name, PX + 14, PY + 28);
+  const tag = kind === "clear" ? "過關！" : kind === "dead" ? "挑戰中" : "最高紀錄";
+  x.font = `900 24px ${SANS}`; const tw = x.measureText(tag).width; x.fillStyle = kind === "clear" ? "#c0262d" : BR; x.fillRect(PX + PW - tw - 28, PY + PH - 42, tw + 28, 42);
+  x.fillStyle = "#fff"; x.fillText(tag, PX + PW - tw - 14, PY + PH - 12); x.textAlign = "center";
+  // 等級徽章
+  const SX = X + w - 210, SY = PY + 150;
+  x.beginPath(); x.moveTo(SX - 130, SY - 140); x.lineTo(SX + 130, SY - 140); x.lineTo(SX + 130, SY + 20); x.quadraticCurveTo(SX + 120, SY + 120, SX, SY + 170); x.quadraticCurveTo(SX - 120, SY + 120, SX - 130, SY + 20); x.closePath();
+  x.fillStyle = BR; x.fill(); x.lineWidth = 10; x.strokeStyle = GOLD; x.stroke();
+  x.fillStyle = GOLD; x.font = `700 28px ${SERIF}`; x.fillText("RANK", SX, SY - 92);
+  x.fillStyle = "#fff3cf"; x.font = `900 190px ${SERIF}`; x.fillText(letter, SX, SY + 92);
+  // 欄位
+  const gap = 62, top = PY + PH + 86;
+  [["稱號", r.name || "—"], ["等級", "LV " + SAVE.lv], ["踏破關數", `第 ${SAVE.best} 關`], ["答過題目", Object.keys(SAVE.seen).length + " 題"], ["最高連擊", SAVE.combo ? SAVE.combo + " 連擊" : "—"]].forEach(([k, v], n) => {
+    const y = top + n * gap; x.textAlign = "left"; x.fillStyle = GOLD; x.font = `700 30px ${SERIF}`; x.fillText(k, X + 90, y);
+    x.fillStyle = BR; cardFit(x, v, s => `900 ${s}px ${SERIF}`, n ? 42 : 46, 480); x.fillText(v, X + 280, y);
+    x.fillStyle = "rgba(74,47,27,.35)"; for (let d = X + 90; d < X + w - 90; d += 12) x.fillRect(d, y + 18, 6, 2); });
+  // 集數足跡
+  const fy = top + 5 * gap + 4;
+  x.textAlign = "left"; x.fillStyle = GOLD; x.font = `700 30px ${SERIF}`; x.fillText("聽過的集數", X + 90, fy);
+  x.fillStyle = BR; x.font = `900 30px ${SERIF}`; x.textAlign = "right"; x.fillText(`${fs.lit} / ${fs.total}`, X + w - 90, fy);
+  const all = fs.all, cols = Math.max(1, Math.ceil(all.length / 4)), cell = Math.floor((w - 180) / cols);
+  all.forEach(([id], k) => { x.fillStyle = SAVE.eps[id] ? GOLD : fs.have.has(id) ? "rgba(74,47,27,.16)" : "rgba(74,47,27,.06)";
+    x.fillRect(X + 90 + (k % cols) * cell, fy + 20 + Math.floor(k / cols) * cell, cell - 3, cell - 3); });
+  // 印章、署名
+  x.save(); x.translate(X + w - 180, top + 2.4 * gap); x.rotate(-.22); x.globalAlpha = .82;
+  x.strokeStyle = "#c0262d"; x.lineWidth = 9; x.beginPath(); x.arc(0, 0, 92, 0, 7); x.stroke(); x.lineWidth = 3; x.beginPath(); x.arc(0, 0, 76, 0, 7); x.stroke();
+  x.fillStyle = "#c0262d"; x.textAlign = "center"; x.font = `900 52px ${SERIF}`; x.fillText("神隱", 0, -6); x.fillText("認證", 0, 52); x.restore();
+  x.textAlign = "left"; x.fillStyle = "rgba(74,47,27,.8)"; x.font = `700 24px ${SERIF}`; x.fillText("主持人　二百五、鳳梨索", X + 90, Y + h - 56);
+  x.restore();
+  x.textAlign = "center"; x.fillStyle = PAPER; x.font = `900 34px ${SANS}`; x.fillText("你能闖到第幾關？　" + url, 540, 1318);
+  const blob = await new Promise(res => c.toBlob(res, "image/png"));
+  return new File([blob], `神隱少年團QA大冒險_通過${SAVE.best}關.png`, { type: "image/png" });
+}
+const CARD = { file: null, url: "", back: null };
+async function openCard(kind, floor){
+  SFX.blip(); CARD.back = document.activeElement;
+  const dlg = $("#card"), img = $("#card-img"), said = $("#card-said");
+  said.textContent = "製作圖片中…"; img.removeAttribute("src"); img.alt = "";
+  ["#card-copy", "#card-dl", "#card-share"].forEach(k => $(k).disabled = true);
+  dlg.hidden = false; document.body.style.overflow = "hidden"; $("#card-x").focus();
+  try {
+    const file = await makeCard(kind, floor);
+    if (CARD.url) URL.revokeObjectURL(CARD.url);
+    CARD.file = file; CARD.url = URL.createObjectURL(file);
+    img.src = CARD.url; img.alt = `成績圖：通過 ${SAVE.best} 關、LV ${SAVE.lv}、稱號 ${rankOf(SAVE.best).name}`;
+    const can = !!(navigator.canShare && navigator.canShare({ files: [file] }));
+    $("#card-share").hidden = !can;
+    ["#card-copy", "#card-dl", "#card-share"].forEach(k => $(k).disabled = false);
+    said.textContent = can ? "可以直接分享，或下載圖片自己貼到社群。" : "下載圖片後，貼到社群跟朋友比一比吧！";
+  } catch (e) { console.error(e); said.textContent = "圖片製作失敗，可以直接截圖分享。"; }
+}
+function closeCard(){ $("#card").hidden = true; document.body.style.overflow = ""; if (CARD.back && CARD.back.focus) CARD.back.focus({ preventScroll: true }); }
+$("#card-x").addEventListener("click", closeCard);
+$("#card").addEventListener("click", e => { if (e.target === $("#card")) closeCard(); });
+$("#card-dl").addEventListener("click", () => {
+  if (!CARD.file) return; SFX.blip();
+  const a = document.createElement("a"); a.href = CARD.url; a.download = CARD.file.name; document.body.appendChild(a); a.click(); a.remove();
+  $("#card-said").textContent = "圖片已下載。";
+});
+$("#card-copy").addEventListener("click", async () => {
+  SFX.blip(); let ok = false; try { await navigator.clipboard.writeText(shareText()); ok = true; } catch (e) {}
+  $("#card-said").textContent = ok ? "文字和網址已複製，可以貼在圖片旁邊。" : "沒辦法自動複製，請手動複製網址：" + SITE_URL;
+});
+$("#card-share").addEventListener("click", async () => {
+  if (!CARD.file) return; SFX.blip();
+  try { await navigator.share({ files: [CARD.file], text: shareText() }); $("#card-said").textContent = "分享成功，謝謝幫節目宣傳！"; }
+  catch (e) { if (!e || e.name !== "AbortError") $("#card-said").textContent = "分享失敗，可以改用「下載圖片」。"; }
+});
 
 /* ---------- 每一格畫面更新 ---------- */
 function update(dt){
+  HOOK.emit("update", dt);
   G.t += dt;
   G.moving = G.phase === "walk" || G.phase === "approach" || G.phase === "title";
   if (G.moving) G.scroll += 46 * dt;
@@ -829,7 +938,7 @@ const THEMES = [
   { sky: ["#0b1026", "#101737", "#16204a", "#1d2b5e", "#27386f", "#33477f"], stars: 1, sun: "#f4f4f4", hill: "#141b3d", trunk: "#1b1a2a", leaf: "#143a3f", leaf2: "#1f5c5a", grass: "#2a6f5b", grass2: "#1f5347", tuft: "#3fa66b", dirt: "#4a3a4a", dirt2: "#33283a" },
   { sky: ["#4aa3df", "#62b4e6", "#7cc4ec", "#99d3f1", "#b8e2f5", "#d7f0f9"], stars: 0, sun: "#fff6c4", hill: "#6fae8f", trunk: "#6b4a2b", leaf: "#2f8f5b", leaf2: "#5fc27a", grass: "#63c74d", grass2: "#3fa66b", tuft: "#b6e86a", dirt: "#a86a3a", dirt2: "#7a4a2b" },
 ];
-const cv = $("#cv"), g = cv.getContext("2d");
+const cv = $("#cv"); let g = cv.getContext("2d");
 function sprite(map, x, y, s, flash){
   for (let r = 0; r < map.length; r++) for (let c = 0; c < map[r].length; c++){
     const ch = map[r][c]; if (ch === ".") continue;
@@ -1335,7 +1444,9 @@ function sceneFor(floor){ return floor <= HAND.length ? BGS[HAND[floor - 1]] : g
 
 function draw(){
   g.imageSmoothingEnabled = false;
+  HOOK.emit("drawStart");
   sceneFor(SAVE.floor).draw();
+  HOOK.emit("drawBg");
   // 主角隊伍：鳳梨索在後、二百五在前
   const f = G.moving ? Math.floor(G.t * 7) % 2 : 0, flash = G.heroHurt > 0 && Math.floor(G.heroHurt * 14) % 2;
   const sx = G.heroHurt > 0 ? Math.round(Math.sin(G.heroHurt * 40) * 2) : 0;
@@ -1369,9 +1480,11 @@ function draw(){
     g.fillStyle = crit ? "#ff7b1c" : "#fee761"; g.fillText(t, 6, 6);
   }
   if (G.hit){ g.fillStyle = G.hit.big ? "#ffd166" : "#fff"; const r = (G.hit.big ? 6 : 4) + G.hit.t * (G.hit.big ? 44 : 30); for (let i = 0; i < 8; i++){ const a = i * Math.PI / 4; g.fillRect(Math.round(G.hit.x + Math.cos(a) * r), Math.round(G.hit.y + Math.sin(a) * r), 3, 3); } }
+  HOOK.emit("drawFx");
   g.font = '8px "Press Start 2P",monospace'; g.textAlign = "center"; g.textBaseline = "alphabetic";
   G.fx.forEach(fx => { const x = Math.round(Math.max(30, fx.x)), y = Math.round(fx.y - fx.t * 18);
     g.fillStyle = "#000"; [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1]].forEach(([dx, dy]) => g.fillText(fx.text, x + dx, y + dy)); g.fillStyle = fx.color; g.fillText(fx.text, x, y); });
+  HOOK.emit("drawEnd");
 }
 function makeIcons(){
   Object.entries(ITEM_ART).forEach(([id, map]) => { const c = document.createElement("canvas"); c.width = 8; c.height = 8; const x = c.getContext("2d");
@@ -1400,6 +1513,41 @@ function loadCounter(code){
 function countAnswer(q, ok){
   try { if (window.goatcounter && window.goatcounter.count) window.goatcounter.count({ path: `QA大冒險/${ok ? "答對" : "答錯"}/${q.id}`, title: q.q.slice(0, 60), event: true }); } catch (e) {}
 }
+
+/* =====================================================================
+   動漫梗特效（只用遊戲事件 HOOK，不影響遊戲規則）
+   - 怪物出現時，兩人頭上冒出「！」
+   - 升級時，二百五和鳳梨索身上各出現一道光柱
+   ===================================================================== */
+const TROPE = (() => {
+  const S = { bang: 0, pillar: 0 };
+  const BANG = ["TT", "TT", "TT", "TT", "..", "TT"];
+  function mini(map, x, y, s){                                          // 小圖＋黑色描邊
+    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) for (let r = 0; r < map.length; r++) for (let c = 0; c < map[r].length; c++)
+      if (map[r][c] !== "."){ g.fillStyle = "#1b1a18"; g.fillRect(Math.round(x + (c + dx) * s), Math.round(y + (r + dy) * s), s, s); }
+    sprite(map, x, y, s, false);
+  }
+  function drawFx(){
+    if (S.pillar > 0){                                                  // 升級光柱（二百五和鳳梨索各一道）
+      for (const X of [PAL_X, HERO_X]){
+        g.globalAlpha = Math.min(1, S.pillar) * .35; R("#fff6c4", X - 10, 0, 20, GROUND); R("#ffffff", X - 4, 0, 8, GROUND); g.globalAlpha = 1;
+        for (let k = 0; k < 8; k++){ const yy = GROUND - ((G.t * 60 + k * 17 + X) % GROUND); R("#ffe45c", X - 9 + (k * 7) % 18, yy, 2, 2); }
+      }
+    }
+    if (S.bang > 0 && !G.down){                                         // 頭上的「！」
+      const bob = Math.round(Math.sin(G.t * 6));
+      mini(BANG, PAL_X - 1, GROUND - 46 + bob, 2); mini(BANG, HERO_X - 1, GROUND - 46 - bob, 2);
+    }
+  }
+  HOOK.on((ev, a) => {
+    if (ev === "spawn") S.bang = .9;
+    else if (ev === "levelup") S.pillar = 1.6;
+    else if (ev === "floor") S.bang = S.pillar = 0;
+    else if (ev === "update"){ S.bang = Math.max(0, S.bang - a); S.pillar = Math.max(0, S.pillar - a); }
+    else if (ev === "drawFx") drawFx();
+  });
+  return { S };
+})();
 
 /* ---------- 載入題庫 ---------- */
 fetch("questions.json?v=" + Math.floor(Date.now() / 3600000)).then(r => { if (!r.ok) throw 0; return r.json(); }).then(d => {
