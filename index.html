@@ -1,0 +1,1413 @@
+<!doctype html>
+<html lang="zh-Hant" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>QA大冒險｜神隱少年團</title>
+<meta name="description" content="神隱少年團 Podcast 的像素 RPG QA大冒險：二百五和鳳梨索自動前進，遇到怪物就答題，答對攻擊、答錯被打，看你能闖到第幾關。">
+<meta name="theme-color" content="#edb65a">
+<meta name="color-scheme" content="light">
+<link rel="icon" type="image/png" sizes="48x48" href="https://spiritboyaway.github.io/podcast-search/favicon.png">
+<link rel="icon" type="image/png" sizes="192x192" href="https://spiritboyaway.github.io/podcast-search/icon-192.png">
+<link rel="apple-touch-icon" href="https://spiritboyaway.github.io/podcast-search/apple-touch-icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="神隱少年團 Podcast">
+<meta property="og:title" content="QA大冒險｜神隱少年團 Podcast">
+<meta property="og:description" content="答對攻擊、答錯被打！用你對節目的了解，看能闖到第幾關。">
+<meta property="og:url" content="https://spiritboyaway.github.io/quiz/">
+<meta property="og:image" content="https://spiritboyaway.github.io/podcast-search/og.png">
+<meta property="og:locale" content="zh_TW">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Noto+Sans+TC:wght@400;500;700;900&family=Noto+Serif+TC:wght@900&family=Press+Start+2P&display=swap" rel="stylesheet">
+<style>
+/* 介面沿用節目網站的米白粗框風格；冒險畫面本身是像素風（全部用程式畫，沒有圖檔） */
+:root{
+  --page:#f4efe6; --ink:#1b1a18; --muted:#6e675c; --paper:#ffffff; --line:#e6dfd2;
+  --amber:#edb65a; --hl:#ffe45c; --blue:#8ccbe6;
+  --ok:#2f9e5b; --ok-bg:#dcf3e4; --no:#c4452f; --no-bg:#f9dfd8;
+}
+*{box-sizing:border-box}
+[hidden]{display:none !important}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--page);color:var(--ink);font-family:"Noto Sans TC",system-ui,"Microsoft JhengHei",sans-serif;line-height:1.6;min-height:100vh}
+a{color:inherit}
+button{font-family:inherit;color:var(--ink)}
+.wrap{max-width:720px;margin:0 auto;padding:0 14px}
+:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+
+/* ---------- 頁首（做小一點，手機一個畫面就看得到遊戲和題目） ---------- */
+header{padding:14px 0 10px}
+.brand{display:flex;align-items:center;gap:12px}
+.logo{flex:none;width:48px;height:48px;border-radius:50%;background:var(--amber);display:grid;place-items:center;
+  font-family:"Noto Serif TC",serif;font-weight:900;font-size:29px;color:#fff;line-height:1;box-shadow:inset 0 -3px 0 rgba(0,0,0,.08);text-decoration:none}
+.brand .grow{flex:1;min-width:0}
+@media (max-width:380px){ .hbtn{font-size:12px;padding:2px 8px} }
+.brand h1{margin:0;font-weight:900;font-size:clamp(20px,5vw,28px);letter-spacing:.04em;line-height:1.2}
+.brand h1 .nw{display:inline-block;white-space:nowrap}
+.brand .full{margin:1px 0 0;font-size:12.5px;color:var(--muted)}
+.brand .full b{color:var(--ink);background:linear-gradient(transparent 45%,var(--hl) 45%,var(--hl) 92%,transparent 92%);padding:0 3px}
+
+/* ---------- 遊戲畫面 ---------- */
+.stage{border:3px solid var(--ink);border-radius:16px;box-shadow:5px 5px 0 var(--ink);overflow:hidden;background:var(--paper)}
+canvas{display:block;width:100%;aspect-ratio:16/9;background:#1d2b53;image-rendering:pixelated;image-rendering:crisp-edges}
+.hud{display:grid;grid-template-columns:auto 1fr auto;gap:3px 10px;align-items:center;padding:7px 12px;border-top:3px solid var(--ink)}
+.hud .lv{grid-row:span 2;font-family:"Bebas Neue",Impact,sans-serif;font-size:34px;line-height:1}
+.hud .lv small{font-size:.45em;display:block;color:var(--muted);margin-bottom:2px}
+.hud .floor{grid-row:span 2;text-align:right;font-weight:900;font-size:15px;white-space:nowrap}
+.hud .floor span{background:linear-gradient(transparent 45%,var(--hl) 45%,var(--hl) 92%,transparent 92%);padding:0 4px}
+.meter{display:flex;align-items:center;gap:6px;font-size:11.5px;font-weight:700}
+.meter i{font-style:normal;width:28px}
+.meter .track{flex:1;height:12px;overflow:hidden;border:2px solid var(--ink);border-radius:999px;background:var(--page)}
+.meter .fill{height:100%;width:0;transition:width .35s}
+.meter .hp{background:var(--no)} .meter .xp{background:var(--amber)}
+.meter b{min-width:50px;text-align:right;font-variant-numeric:tabular-nums}
+
+/* ---------- 對話框 ---------- */
+.dlg{margin-top:12px;padding:14px 16px 16px;min-height:270px;background:var(--paper);border:3px solid var(--ink);border-radius:16px;box-shadow:5px 5px 0 var(--ink)}
+.dlg .who{margin:0 0 4px;font-size:12.5px;font-weight:700;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dlg .who b{color:var(--ink)}
+.dlg .q{margin:0 0 10px;font-size:clamp(16.5px,4.3vw,19px);font-weight:900;line-height:1.5}
+.dlg .q:focus,.dlg .msg:focus{outline:none}
+.dlg .msg{margin:0 0 4px;font-size:19px;font-weight:900}
+.dlg p{margin:0 0 6px}
+.dlg .sub{font-size:14.5px;color:var(--muted)}
+.dlg .sub b{color:var(--ink)}
+.opts{display:grid;gap:8px}
+.opt{display:flex;gap:10px;align-items:center;width:100%;text-align:left;font-size:15.5px;font-weight:700;line-height:1.4;padding:8px 12px 8px 9px;cursor:pointer;
+  border:3px solid var(--ink);border-radius:12px;background:var(--paper);box-shadow:3px 3px 0 var(--ink)}
+.opt .k{flex:none;width:28px;height:28px;border-radius:50%;border:2px solid var(--ink);background:var(--page);display:grid;place-items:center;
+  font-family:"Bebas Neue",Impact,sans-serif;font-size:18px;line-height:1;padding-top:2px}
+.opt:not(:disabled):hover{background:#fff6c4}
+.opt:not(:disabled):active{transform:translate(3px,3px);box-shadow:none}
+.opt:disabled{cursor:default;color:var(--ink)}
+.opt.right{background:var(--ok-bg);border-color:var(--ok);box-shadow:3px 3px 0 var(--ok)}
+.opt.right .k{background:var(--ok);color:#fff;border-color:var(--ok)}
+.opt.wrong{background:var(--no-bg);border-color:var(--no);box-shadow:3px 3px 0 var(--no)}
+.opt.wrong .k{background:var(--no);color:#fff;border-color:var(--no)}
+.opt.dim{opacity:.45;box-shadow:none}
+.fb{margin:16px 0 0;font-size:14.5px}
+.fb b{font-size:16px}
+.fb b.ok{color:var(--ok)} .fb b.no{color:var(--no)}
+.fb a{font-weight:700;white-space:nowrap;font-size:13.5px}
+.go{display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:10px 12px;margin-top:12px}
+.go.left{justify-content:flex-start}
+.btn{font-weight:900;font-size:17px;padding:7px 22px;cursor:pointer;border:3px solid var(--ink);border-radius:12px;background:var(--amber);box-shadow:4px 4px 0 var(--ink);letter-spacing:.04em}
+.btn.alt{background:var(--paper);font-size:15px;padding:6px 14px}
+.btn:hover{filter:brightness(1.05)}
+.btn:active{transform:translate(4px,4px);box-shadow:none}
+.btn:disabled{opacity:.5;cursor:default}
+.link{border:0;background:none;color:var(--muted);text-decoration:underline;font-size:13px;cursor:pointer;padding:0}
+.rank{display:inline-block;font-family:"Noto Serif TC",serif;font-weight:900;font-size:20px;padding:0 6px;background:linear-gradient(transparent 50%,var(--hl) 50%,var(--hl) 94%,transparent 94%)}
+.said{font-size:13px;color:var(--muted);min-height:1.6em;margin:8px 0 0;text-align:right}
+.keys{font-size:12.5px;color:var(--muted);margin:10px 2px 0;text-align:right}
+@media (hover:none){ .keys{display:none} }
+
+/* ---------- 道具、連擊、天賦、語錄、集數足跡 ---------- */
+.hbtn{flex:none;align-self:center;border:2px solid var(--ink);background:var(--paper);border-radius:999px;padding:2px 11px;font-size:13px;font-weight:700;white-space:nowrap;box-shadow:2px 2px 0 var(--ink);cursor:pointer}
+.hbtn:hover{background:var(--hl)}
+.hbtns{flex:none;display:flex;flex-direction:row;align-items:center;gap:6px;margin-left:auto}
+.brand{flex-wrap:wrap}
+@media (max-width:640px){ .hbtns{flex-basis:100%;justify-content:flex-end;margin-top:-2px} }
+.hbtn[aria-pressed=false]{color:var(--muted);background:var(--page)}
+.hbtn span{font-variant-numeric:tabular-nums}
+.items{grid-column:1 / -1;display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:5px}
+.item{display:flex;align-items:center;justify-content:center;gap:4px;border:2px solid var(--ink);border-radius:10px;background:var(--paper);padding:3px 4px;font-size:12.5px;font-weight:700;cursor:pointer;box-shadow:2px 2px 0 var(--ink);white-space:nowrap;min-width:0}
+.item img{width:18px;height:18px;image-rendering:pixelated;flex:none}
+.item span{overflow:hidden;text-overflow:ellipsis}
+.item b{font-family:"Bebas Neue",Impact,sans-serif;font-size:16px;line-height:1;background:var(--hl);border-radius:6px;padding:1px 4px 0}
+.item:not(:disabled):hover{background:#fff6c4}
+.item:not(:disabled):active{transform:translate(2px,2px);box-shadow:none}
+.item:disabled{opacity:.45;box-shadow:none;cursor:default}
+@media (max-width:440px){ .items{gap:4px} .item{padding:3px 2px;font-size:12px;gap:3px} .item img{display:none} .item b{font-size:15px} }
+.note{margin:8px 0 0;padding:6px 12px;background:var(--hl);border:2px solid var(--ink);border-radius:10px;font-weight:700;font-size:14px}
+.opt.gone{opacity:.25;box-shadow:none;text-decoration:line-through}
+.hint{display:flex;gap:10px;align-items:center;margin-top:10px;padding:8px 10px;background:#eef7fb;border:2px dashed var(--ink);border-radius:12px}
+.hint img{width:40px;height:40px;border-radius:50%;border:2px solid var(--ink);flex:none;object-fit:cover;background:#fff}
+.hint p{margin:0;font-size:15px}
+.hint small{display:block;color:var(--muted);font-size:12px}
+.extra{margin:8px 0 0;font-size:14px;color:var(--ink)}
+.extra b{margin-right:4px}
+.extra b.crit{color:#d9480f}
+.extra b.new{background:linear-gradient(transparent 50%,var(--hl) 50%,var(--hl) 92%,transparent 92%);padding:0 2px}
+.perks{display:grid;gap:10px;margin-top:10px}
+.perk{display:grid;gap:2px;text-align:left;border:3px solid var(--ink);border-radius:12px;background:var(--paper);box-shadow:3px 3px 0 var(--ink);padding:10px 14px;cursor:pointer}
+.perk b{font-size:17px;font-weight:900}
+.perk span{font-size:14.5px}
+.perk small{color:var(--muted);font-size:12.5px}
+.perk:hover{background:#fff6c4}
+.perk:active{transform:translate(3px,3px);box-shadow:none}
+.quote{display:flex;gap:12px;align-items:flex-start;margin:10px 0 12px;padding:10px 12px;background:var(--page);border:2px solid var(--ink);border-radius:12px}
+.quote img{width:48px;height:48px;border-radius:50%;border:2px solid var(--ink);object-fit:cover;flex:none;background:#fff}
+.quote blockquote{margin:0;min-width:0}
+.quote p{margin:0;font-weight:700;font-size:15.5px;line-height:1.6}
+.quote footer{margin:4px 0 0;font-size:12.5px;color:var(--muted);line-height:1.6}
+.quote footer a{font-weight:700;color:var(--ink);white-space:nowrap}
+.ovl{position:fixed;inset:0;z-index:50;background:rgba(27,26,24,.55);display:grid;place-items:center;padding:16px}
+.sheet{width:min(680px,100%);max-height:calc(100vh - 32px);overflow:auto;background:var(--paper);border:3px solid var(--ink);border-radius:16px;box-shadow:5px 5px 0 var(--ink);padding:14px 16px 16px}
+.sheet-top{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.sheet h2{margin:0;font-size:20px;font-weight:900}
+.x{border:2px solid var(--ink);background:var(--paper);border-radius:50%;width:34px;height:34px;font-size:20px;line-height:1;cursor:pointer;font-weight:700}
+.sheet .sub small{display:block;font-size:12.5px}
+.legend{display:flex;flex-wrap:wrap;gap:4px 14px;font-size:12.5px;color:var(--muted);margin:6px 0 8px}
+.legend span{display:flex;align-items:center;gap:4px}
+.legend i{width:14px;height:14px;padding:0}
+.foot-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(44px,1fr));gap:5px}
+.ep{border:2px solid var(--ink);border-radius:6px;background:var(--page);color:var(--muted);font-family:"Bebas Neue",Impact,"Noto Sans TC",sans-serif;font-size:15px;line-height:1;padding:6px 0 4px;cursor:pointer;display:block}
+.ep.lit{background:var(--amber);color:var(--ink);box-shadow:2px 2px 0 var(--ink)}
+.ep.none{border-style:dashed;border-color:#b9b1a3;background:transparent;color:#b9b1a3}
+.ep:hover{outline:2px solid var(--blue)}
+.foot-info{margin:12px 0 0;font-size:14px;min-height:3.2em}
+.foot-info a{font-weight:700}
+
+footer{margin:34px 0 30px;font-size:12.5px;color:var(--muted);line-height:1.8}
+footer a{font-weight:700;color:var(--ink)}
+
+/* ---------- 動態背景 ---------- */
+.bg{position:fixed;inset:0;z-index:-1;overflow:hidden;pointer-events:none}
+.bg .tone{position:absolute;inset:-60px;background-image:radial-gradient(rgba(27,26,24,.075) 1.6px,transparent 1.8px);background-size:22px 22px;
+  animation:tone 28s linear infinite;will-change:transform}
+@keyframes tone{to{transform:translate(22px,22px)}}
+@media (max-width:760px){ .bg .tone{opacity:.8} }
+@media (prefers-reduced-motion: reduce){ .bg .tone{animation:none !important} }
+</style>
+</head>
+<body>
+<div class="bg" aria-hidden="true"><div class="tone"></div></div>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <a class="logo" href="https://spiritboyaway.github.io/podcast-search/" aria-label="回到關鍵字搜尋">隱</a>
+      <div class="grow">
+        <h1><span class="nw">神隱少年團</span><span class="nw">QA大冒險</span></h1>
+        <p class="full"><b>答對攻擊、答錯被打</b>　看你能闖到第幾關</p>
+      </div>
+      <div class="hbtns">
+        <button class="hbtn" id="foot-btn" type="button">集數足跡 <span id="foot-n"></span></button>
+        <button class="hbtn" id="snd-btn" type="button" aria-pressed="true">音效：開</button>
+        <button class="hbtn" id="bgm-btn" type="button" aria-pressed="true">音樂：開</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="stage">
+    <canvas id="cv" width="256" height="144" role="img" aria-label="像素風冒險畫面：二百五和鳳梨索在路上前進"></canvas>
+    <div class="hud">
+      <div class="lv"><small>LV</small><span id="h-lv">1</span></div>
+      <div class="meter"><i>HP</i><div class="track"><div class="fill hp" id="h-hp"></div></div><b id="h-hpn"></b></div>
+      <div class="floor"><span id="h-floor"></span></div>
+      <div class="meter"><i>EXP</i><div class="track"><div class="fill xp" id="h-xp"></div></div><b id="h-xpn"></b></div>
+      <div class="items" id="items" role="group" aria-label="道具"></div>
+    </div>
+    <p class="note" id="note" role="status" hidden></p>
+  </div>
+
+  <section class="dlg" id="dlg" aria-live="polite"><p class="sub">題庫載入中…</p></section>
+  <p class="keys">鍵盤：1～4 選答案，Enter 繼續；道具在血條下方</p>
+
+  <div class="ovl" id="foot" hidden role="dialog" aria-modal="true" aria-labelledby="foot-h">
+    <div class="sheet">
+      <div class="sheet-top"><h2 id="foot-h">集數足跡</h2><button class="x" id="foot-x" type="button" aria-label="關閉">×</button></div>
+      <p class="sub" id="foot-sum"></p>
+      <div class="legend"><span><i class="ep lit"></i>已點亮</span><span><i class="ep"></i>還沒點亮</span><span><i class="ep none"></i>還沒有題目</span></div>
+      <div class="foot-grid" id="foot-grid"></div>
+      <p class="foot-info" id="foot-info"></p>
+    </div>
+  </div>
+
+  <footer>
+    題目由 AI 根據逐字稿出題、主持人審核；逐字稿為自動整理，題目或答案如果有誤，歡迎到節目社群告訴我們。<br>
+    冒險進度只存在你自己的瀏覽器。完整節目請到 <a href="https://spiritboyaway.firstory.cc" target="_blank" rel="noopener">Firstory</a> 或各大 Podcast 平台收聽。<br>
+    <a href="https://spiritboyaway.github.io/podcast-search/">關鍵字搜尋</a>・<a href="https://spiritboyaway.github.io/ask-show/">問問節目</a>・<a href="https://www.youtube.com/@spiritboyaway" target="_blank" rel="noopener">YouTube</a>
+    <span id="built"></span>
+  </footer>
+</div>
+
+<script>
+"use strict";
+const $ = s => document.querySelector(s);
+const esc = s => String(s == null ? "" : s).replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const RMOTION = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const SITE_URL = "https://spiritboyaway.github.io/quiz/";
+const STORE = "spiritboy-quest-v1";
+
+/* =====================================================================
+   遊戲規則
+   畫面座標用 256×144 的「遊戲單位」（canvas 實際就是這個大小，再用 CSS 放大成像素風）
+   ===================================================================== */
+const W = 256, H = 144, GROUND = 112, HERO_X = 62, PAL_X = 36, MON_X = 186;
+const PER_FLOOR = 3;                                   // 每關 3 隻怪，最後一隻是頭目
+const MONSTERS = [
+  { type: "slime",    name: "劇透史萊姆" },
+  { type: "bat",      name: "斷更蝙蝠" },
+  { type: "mushroom", name: "爆雷蘑菇" },
+  { type: "ghost",    name: "棄番幽靈" },
+  { type: "golem",    name: "作畫崩壞魔像" },
+];
+let DB = null, QUESTIONS = [];
+// 存檔：lv 等級、exp 經驗值、floor 目前第幾關、best 最多通過幾關、seen 看過的題目、
+//       items 道具數量、perks 天賦、eps 點亮的集數（集數足跡）、lastQuote 上次過關的語錄
+let SAVE = { lv: 1, exp: 0, floor: 1, best: 0, seen: {}, items: {}, perks: {}, eps: {}, lastQuote: -1, stat: {} };
+try { Object.assign(SAVE, JSON.parse(localStorage.getItem(STORE) || "{}")); } catch (e) {}
+["seen", "items", "perks", "eps", "stat"].forEach(k => { if (!SAVE[k] || typeof SAVE[k] !== "object") SAVE[k] = {}; });
+["lv", "floor"].forEach(k => { SAVE[k] = Math.max(1, Math.floor(+SAVE[k]) || 1); });
+["exp", "best"].forEach(k => { SAVE[k] = Math.max(0, Math.floor(+SAVE[k]) || 0); });
+function persist(){ try { localStorage.setItem(STORE, JSON.stringify(SAVE)); } catch (e) {} }
+
+/* =====================================================================
+   音效：全部用瀏覽器內建的 Web Audio 即時合成（像紅白機的方波、雜訊），不需要音檔
+   右上角「音效」按鈕可以開關，設定會記在瀏覽器裡
+   ===================================================================== */
+const SFX = (() => {
+  let ac = null, master = null, noiseBuf = null;
+  const on = () => SAVE.sound !== false;
+  function ctx(){
+    if (!ac){ const A = window.AudioContext || window.webkitAudioContext; if (!A) return null;
+      try { ac = new A(); master = ac.createGain(); master.gain.value = .22; master.connect(ac.destination); } catch (e) { ac = null; return null; } }
+    if (ac.state === "suspended") ac.resume().catch(() => {});
+    return ac;
+  }
+  // 瀏覽器規定要使用者先點過畫面才能出聲：第一次點擊／按鍵時把音效準備好
+  const unlock = () => { if (on()) ctx(); };
+  ["pointerdown", "keydown"].forEach(ev => document.addEventListener(ev, unlock, { capture: true, passive: true }));
+
+  // 一個音：freq 頻率、dur 長度（秒）、type 波形、to 滑到的頻率、at 延遲、vol 音量
+  function tone(freq, dur, o = {}){
+    const c = on() && ctx(); if (!c) return;
+    const t = c.currentTime + (o.at || 0), osc = c.createOscillator(), gn = c.createGain();
+    osc.type = o.type || "square"; osc.frequency.setValueAtTime(freq, t);
+    if (o.to) osc.frequency.exponentialRampToValueAtTime(o.to, t + dur);
+    const v = o.vol != null ? o.vol : .5;
+    gn.gain.setValueAtTime(0.0001, t); gn.gain.exponentialRampToValueAtTime(v, t + .008); gn.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    osc.connect(gn); gn.connect(master); osc.start(t); osc.stop(t + dur + .02);
+  }
+  // 雜訊（打擊、爆炸、咀嚼聲）
+  function noise(dur, o = {}){
+    const c = on() && ctx(); if (!c) return;
+    if (!noiseBuf){ noiseBuf = c.createBuffer(1, c.sampleRate, c.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
+    const t = c.currentTime + (o.at || 0), src = c.createBufferSource(), f = c.createBiquadFilter(), gn = c.createGain();
+    src.buffer = noiseBuf; f.type = o.filter || "lowpass"; f.frequency.setValueAtTime(o.freq || 2000, t);
+    if (o.toFreq) f.frequency.exponentialRampToValueAtTime(o.toFreq, t + dur);
+    const v = o.vol != null ? o.vol : .5;
+    gn.gain.setValueAtTime(v, t); gn.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    src.connect(f); f.connect(gn); gn.connect(master); src.start(t); src.stop(t + dur + .02);
+  }
+  // 一串音符：notes＝[[頻率, 長度], ...]
+  function seq(notes, o = {}){ let at = o.at || 0; notes.forEach(([f, d]) => { if (f) tone(f, d * .95, { ...o, at }); at += d; }); }
+  const N = { C4: 262, D4: 294, E4: 330, F4: 349, G4: 392, A4: 440, B4: 494, C5: 523, D5: 587, E5: 659, F5: 698, G5: 784, A5: 880, B5: 988, C6: 1047, E6: 1319, G6: 1568 };
+
+  return {
+    on, ctx, toggle(){ SAVE.sound = !on(); persist(); if (on()){ ctx(); this.blip(); } },
+    blip(){ tone(880, .05, { vol: .25 }); },
+    start(){ seq([[N.C5, .08], [N.E5, .08], [N.G5, .08], [N.C6, .16]], { vol: .35 }); },
+    monster(boss){ if (boss){ seq([[110, .18], [104, .18], [98, .36]], { type: "sawtooth", vol: .35 }); noise(.5, { freq: 300, vol: .3, at: .1 }); }
+      else seq([[196, .07], [147, .1]], { type: "triangle", vol: .5 }); },
+    ask(){ tone(1320, .05, { vol: .18 }); tone(1760, .07, { vol: .18, at: .05 }); },
+    hit(combo){ noise(.09, { freq: 4000, toFreq: 800, vol: .45 }); const b = 440 * Math.pow(2, Math.min(combo - 1, 8) / 12); tone(b, .1, { to: b * 2, vol: .3, at: .02 }); },
+    crit(combo){ noise(.18, { freq: 6000, toFreq: 400, vol: .6 }); tone(220, .2, { to: 880, type: "sawtooth", vol: .3 }); const b = 660 * Math.pow(2, Math.min(combo - 1, 8) / 12); seq([[b, .06], [b * 1.5, .06], [b * 2, .12]], { vol: .25, at: .08 }); },
+    defeat(){ noise(.35, { freq: 1500, toFreq: 120, vol: .5, at: .12 }); tone(330, .3, { to: 60, type: "triangle", vol: .4, at: .12 }); },
+    hurt(){ noise(.2, { freq: 900, toFreq: 150, vol: .55 }); tone(220, .25, { to: 70, type: "sawtooth", vol: .35 }); },
+    guard(){ tone(1568, .25, { type: "triangle", vol: .35 }); tone(2093, .3, { type: "triangle", vol: .25, at: .04 }); noise(.05, { freq: 8000, filter: "highpass", vol: .25 }); },
+    down(){ seq([[N.G4, .18], [N.E4, .18], [N.C4, .18], [131, .5]], { type: "triangle", vol: .45, at: .35 }); },
+    levelup(){ seq([[N.C5, .07], [N.E5, .07], [N.G5, .07], [N.C6, .07], [N.G5, .07], [N.C6, .22]], { vol: .3, at: .4 }); },
+    chest(){ tone(150, .08, { type: "triangle", vol: .4, at: .55 }); seq([[N.E6, .05], [N.G6, .05], [N.E6, .05], [N.G6, .05], [2093, .18]], { type: "triangle", vol: .22, at: .65 }); },
+    sparkle(at = 0){ seq([[N.A5, .05], [N.C6, .05], [N.E6, .1]], { type: "triangle", vol: .22, at }); },
+    bento(){ for (let k = 0; k < 3; k++) noise(.06, { freq: 1200, vol: .35, at: k * .11 }); seq([[N.C5, .08], [N.G5, .14]], { type: "triangle", vol: .3, at: .36 }); },
+    cut(){ noise(.12, { freq: 7000, filter: "highpass", vol: .4 }); noise(.12, { freq: 7000, filter: "highpass", vol: .4, at: .13 }); },
+    askHost(){ tone(N.E5, .12, { type: "triangle", vol: .35 }); tone(N.C5, .2, { type: "triangle", vol: .35, at: .13 }); },
+    charm(){ seq([[N.C6, .06], [N.E6, .06], [N.G6, .06], [2093, .2]], { type: "triangle", vol: .22 }); },
+    perk(){ seq([[N.G5, .07], [N.C6, .18]], { vol: .28 }); },
+    clear(){ seq([[N.C5, .1], [N.C5, .1], [N.C5, .1], [N.C5, .25], [N.G4, .25], [N.A4, .25], [N.C5, .15], [0, .05], [N.A4, .1], [N.C5, .45]], { vol: .3 });
+      seq([[N.E4, .3], [N.E4, .25], [N.D4, .25], [N.E4, .25], [N.F4, .2], [N.E4, .5]], { type: "triangle", vol: .3, at: .3 }); },
+  };
+})();
+
+/* =====================================================================
+   背景音樂：原創的 8-bit 小曲，同樣用 Web Audio 即時合成（不需要音檔）
+   - 冒險曲：一般前進、答題時（C 大調、輕快）
+   - 頭目曲：頭目出現時（A 小調、比較緊張）
+   過關、倒下時會先停下來讓勝利／失敗音效播完，下一關開始再接著放。
+   右上角「音樂：開／關」可以切換，跟音效分開設定。
+   ===================================================================== */
+const MUSIC = (() => {
+  const NOTE = n => { const m = /^([A-G])(#?)(\d)$/.exec(n); const k = { C: 0, D: 2, E: 4, F: 5, G: 7, A: 9, B: 11 }[m[1]] + (m[2] ? 1 : 0);
+    return 440 * Math.pow(2, (k + (+m[3] + 1) * 12 - 69) / 12); };
+  // 寫譜的方式："音名:長度" 用空白隔開，長度單位是十六分音符（2＝八分音符、4＝四分音符），"-" 是休止
+  function parse(str){ const out = []; str.trim().split(/\s+/).forEach(tok => { const [n, l] = tok.split(":"); out.push([n === "-" ? 0 : NOTE(n), +l]); }); return out; }
+  function toSteps(list, total){ const arr = new Array(total).fill(null); let p = 0; list.forEach(([f, l]) => { if (f) arr[p % total] = [f, l]; p += l; }); return arr; }
+  function bassLine(chords, pattern){ const out = []; chords.forEach(ch => pattern.forEach(([o, l]) => out.push([o === null ? 0 : NOTE(ch + (2 + o)), l]))); return out; }
+
+  const TRACKS = {
+    field: { bpm: 132, bars: 8,
+      lead: "E5:4 G5:2 C6:2 B5:2 G5:2 E5:4  A4:2 C5:2 E5:4 D5:2 C5:2 A4:4  F5:4 A5:2 F5:2 E5:2 D5:2 C5:4  D5:2 E5:2 F5:2 G5:2 B4:4 -:4 " +
+            "G5:4 E5:2 G5:2 C6:4 B5:2 A5:2  A5:4 G5:2 E5:2 C5:4 E5:4  F5:2 A5:2 C6:2 A5:2 G5:2 B5:2 D6:2 B5:2  C6:8 G5:4 -:4",
+      chords: ["C", "A", "F", "G", "C", "A", "F", "C"], bass: [[0, 2], [1, 2], [0, 2], [1, 2], [0, 2], [1, 2], [0, 2], [1, 2]],
+      drum: s => ({ kick: s % 8 === 0, snare: s % 8 === 4, hat: s % 2 === 0 }) },
+    boss: { bpm: 150, bars: 4,
+      lead: "A4:2 A4:2 C5:2 A4:2 E5:4 D5:2 C5:2  B4:2 C5:2 D5:2 E5:2 A4:4 -:4  F5:2 E5:2 D5:2 C5:2 D5:4 C5:2 A4:2  G#4:4 B4:2 D5:2 E5:8",
+      chords: ["A", "A", "F", "E"], bass: [[0, 2], [0, 2], [1, 2], [0, 2], [0, 2], [0, 2], [1, 2], [0, 2]],
+      drum: s => ({ kick: s % 4 === 0, snare: s % 8 === 4, hat: true }) },
+    // ----- 以下是之後加的曲子 -----
+    title: { name: "標題曲", bpm: 96, bars: 8,                       // F 大調、慢慢的開場
+      lead: "A4:4 C5:4 F5:6 E5:2  G5:4 E5:4 C5:8  D5:4 F5:4 A5:6 G5:2  F5:4 D5:4 A#4:8 " +
+            "A4:4 C5:4 F5:4 A5:4  G5:6 F5:2 E5:4 C5:4  D5:4 F5:4 A#5:4 A5:4  G5:12 -:4",
+      chords: ["F", "C", "D", "A#", "F", "C", "A#", "C"], bass: [[0, 8], [1, 8]],
+      drum: s => ({ kick: s % 16 === 0, snare: false, hat: s % 4 === 2 }) },
+    festival: { name: "廟會曲", bpm: 144, bars: 8,                   // G 大調五聲音階、熱鬧（夜市、廟口、祭典）
+      lead: "G5:2 E5:2 D5:2 E5:2 G5:4 A5:4  B5:2 A5:2 G5:2 E5:2 D5:8  E5:2 G5:2 A5:2 G5:2 E5:4 D5:4  B4:2 D5:2 E5:2 G5:2 A5:8 " +
+            "D6:2 B5:2 A5:2 B5:2 D6:4 B5:4  A5:2 G5:2 E5:2 G5:2 A5:8  G5:2 E5:2 D5:2 B4:2 D5:2 E5:2 G5:4  A5:4 B5:4 G5:8",
+      chords: ["G", "G", "C", "D", "G", "E", "C", "G"], bass: [[0, 2], [null, 2], [1, 2], [0, 2], [0, 2], [null, 2], [1, 2], [0, 2]],
+      drum: s => ({ kick: s % 16 === 0 || s % 16 === 6 || s % 16 === 8, snare: s % 8 === 4, hat: s % 2 === 0 }) },
+    pastoral: { name: "田園曲", bpm: 112, bars: 8,                   // D 大調、悠閒（稻田、校園、海邊、森林）
+      lead: "F#5:6 E5:2 D5:4 A4:4  C#5:4 E5:4 A5:8  B4:4 D5:4 F#5:6 E5:2  D5:4 B4:4 G4:8 " +
+            "A4:2 D5:2 F#5:2 A5:2 F#5:4 D5:4  E5:2 C#5:2 A4:2 C#5:2 E5:8  G5:4 F#5:4 E5:4 D5:4  C#5:4 E5:4 D5:8",
+      chords: ["D", "A", "B", "G", "D", "A", "G", "D"], bass: [[0, 4], [1, 4], [0, 4], [1, 4]],
+      drum: s => ({ kick: s % 16 === 0, snare: s % 16 === 8, hat: s % 4 === 0 }) },
+    japan: { name: "和風曲", bpm: 100, bars: 8, wave: "triangle",    // 都節音階、安靜（神社、溫泉、雪國）
+      lead: "E5:4 F5:4 A5:6 B5:2  C6:4 B5:2 A5:2 F5:8  E5:4 A5:4 B5:4 C6:4  B5:6 A5:2 E5:8 " +
+            "A5:4 B5:4 C6:6 E6:2  C6:4 B5:2 A5:2 B5:8  A5:4 F5:4 E5:4 F5:4  E5:12 -:4",
+      chords: ["E", "E", "A", "E", "A", "A", "F", "E"], bass: [[0, 8], [1, 8]],
+      drum: s => ({ kick: s % 16 === 0, snare: false, hat: s % 16 === 6 || s % 16 === 10 }) },
+    fantasy: { name: "冒險曲・異境", bpm: 140, bars: 8,              // D 多利安、壯闊（沙漠、火山、海底、冰洞、天空之城）
+      lead: "D5:2 A4:2 D5:2 E5:2 F5:4 E5:2 D5:2  C5:2 E5:2 G5:4 E5:2 C5:2 G4:4  D5:2 F5:2 A5:4 B5:2 A5:2 F5:4  E5:2 G5:2 C6:8 B5:2 G5:2 " +
+            "A#5:4 A5:2 G5:2 F5:4 D5:4  G5:4 F5:2 E5:2 C5:4 E5:4  F5:2 G5:2 A5:2 C6:2 B5:2 A5:2 G5:2 E5:2  A5:4 C#5:4 D5:8",
+      chords: ["D", "C", "D", "C", "A#", "C", "D", "A"], bass: [[0, 2], [0, 2], [1, 2], [0, 2], [0, 2], [0, 2], [1, 2], [0, 2]],
+      drum: s => ({ kick: s % 8 === 0 || s % 16 === 14, snare: s % 8 === 4, hat: s % 2 === 0 }) },
+    dark: { name: "地城曲", bpm: 92, bars: 8, wave: "square",        // C 小調、陰森（地下城、魔王城）
+      lead: "C5:4 D#5:4 G5:4 F#5:4  G5:8 D#5:8  F5:4 G#5:4 C6:4 B5:4  G5:12 -:4 " +
+            "C6:4 B5:4 G#5:4 G5:4  D#5:4 F5:4 G5:8  F5:4 D#5:4 D5:4 B4:4  C5:12 -:4",
+      chords: ["C", "G#", "F", "G", "C", "G#", "F", "G"], bass: [[0, 4], [0, 4], [0, 4], [1, 4]],
+      drum: s => ({ kick: s % 8 === 0, snare: s % 16 === 12, hat: false }) },
+    final: { name: "魔王曲", bpm: 168, bars: 4,                     // E 小調、最緊張（魔王城頭目、之後每 10 關的頭目）
+      lead: "E5:2 E5:2 F5:2 E5:2 B5:4 A5:2 G5:2  F5:2 G5:2 A5:2 G5:2 F5:4 E5:4  D5:2 F5:2 A5:2 D6:2 C6:2 A5:2 F5:4  D#5:4 F#5:4 B5:8",
+      chords: ["E", "C", "D", "B"], bass: [[0, 2], [1, 2], [0, 2], [1, 2], [0, 2], [1, 2], [0, 2], [1, 2]],
+      drum: s => ({ kick: s % 4 === 0, snare: s % 8 === 4, hat: true }) },
+  };
+  Object.entries(TRACKS).forEach(([k, t]) => { const total = t.bars * 16; t.total = total;
+    const len = parse(t.lead).reduce((a, n) => a + n[1], 0); if (len !== total) console.error("曲子長度不對", k, len, total);
+    t.leadSteps = toSteps(parse(t.lead), total); t.bassSteps = toSteps(bassLine(t.chords, t.bass), total); });
+
+  let ac = null, out = null, timer = null, cur = null, want = null, step = 0, nextT = 0, pulse = null, noiseBuf = null, gestured = false;
+  const on = () => SAVE.music !== false;
+  function ready(){
+    if (!gestured) return null;                                    // 還沒點過畫面：先記住要放哪首，第一次點擊時再開始
+    ac = SFX.ctx(); if (!ac) return null;
+    if (!out){ out = ac.createGain(); out.gain.value = .085; out.connect(ac.destination);
+      // 25% 的方波（紅白機主旋律常用的音色）
+      const n = 32, re = new Float32Array(n), im = new Float32Array(n); for (let k = 1; k < n; k++) im[k] = 2 / (k * Math.PI) * Math.sin(k * Math.PI * .25);
+      pulse = ac.createPeriodicWave(re, im);
+      noiseBuf = ac.createBuffer(1, ac.sampleRate / 2, ac.sampleRate); const d = noiseBuf.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; }
+    return ac;
+  }
+  function note(t, f, dur, kind, vol){
+    const o = ac.createOscillator(), g = ac.createGain();
+    if (kind === "pulse") o.setPeriodicWave(pulse); else o.type = kind;
+    o.frequency.setValueAtTime(f, t);
+    g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(vol, t + .01); g.gain.setValueAtTime(vol, t + Math.max(.02, dur - .04)); g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    o.connect(g); g.connect(out); o.start(t); o.stop(t + dur + .02);
+  }
+  function drum(t, d){
+    if (d.kick){ const o = ac.createOscillator(), g = ac.createGain(); o.type = "sine"; o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(40, t + .12);
+      g.gain.setValueAtTime(.9, t); g.gain.exponentialRampToValueAtTime(0.0001, t + .14); o.connect(g); g.connect(out); o.start(t); o.stop(t + .16); }
+    const hit = (len, freq, vol, type) => { const s = ac.createBufferSource(), f = ac.createBiquadFilter(), g = ac.createGain(); s.buffer = noiseBuf; f.type = type; f.frequency.value = freq;
+      g.gain.setValueAtTime(vol, t); g.gain.exponentialRampToValueAtTime(0.0001, t + len); s.connect(f); f.connect(g); g.connect(out); s.start(t); s.stop(t + len + .02); };
+    if (d.snare) hit(.12, 1800, .5, "bandpass");
+    if (d.hat) hit(.03, 7000, .18, "highpass");
+  }
+  function tick(){
+    if (!ac || !cur) return;
+    const tr = TRACKS[cur], dt = 60 / tr.bpm / 4;
+    if (nextT < ac.currentTime - .5) nextT = ac.currentTime + .05;       // 分頁切回來時不要一次補一大串音符
+    while (nextT < ac.currentTime + .15){
+      const L = tr.leadSteps[step], B = tr.bassSteps[step];
+      if (L) note(nextT, L[0], L[1] * dt * .92, tr.wave || "pulse", tr.wave === "triangle" ? .5 : tr.wave === "square" ? .22 : .32);
+      if (B) note(nextT, B[0], B[1] * dt * .9, "triangle", .55);
+      drum(nextT, tr.drum(step));
+      nextT += dt; step = (step + 1) % tr.total;
+    }
+  }
+  function start(name){
+    if (!on() || document.hidden || !ready()) return;
+    if (cur === name && timer) return;
+    stopTimer(); cur = name; step = 0; nextT = ac.currentTime + .08; timer = setInterval(tick, 25); tick();
+  }
+  function stopTimer(){ if (timer){ clearInterval(timer); timer = null; } cur = null; }
+  document.addEventListener("visibilitychange", () => { if (document.hidden) stopTimer(); else if (want) start(want); });
+  const onGesture = () => { if (gestured) return; gestured = true; if (want) start(want); };
+  ["pointerdown", "keydown"].forEach(ev => document.addEventListener(ev, onGesture, { capture: true, passive: true }));
+  return {
+    on,
+    play(name){ want = name; start(name); },
+    stop(){ want = null; stopTimer(); },
+    toggle(){ SAVE.music = !on(); persist(); if (on()){ if (want) start(want); } else stopTimer(); },
+    now: () => cur,
+    names: () => Object.keys(TRACKS),
+  };
+})();
+
+
+// G＝這一局畫面上的狀態（不存檔）
+const G = { hp: 30, idx: 0, phase: "title", t: 0, scroll: 0, mon: null, fx: [], heroLunge: 0, monLunge: 0, heroHurt: 0, levelUp: 0, hit: null, cur: null, moving: true, down: 0,
+            combo: 0, comboT: 0, chest: null, pendingPerks: 0, lastGain: null };
+
+/* ---------- 道具 ---------- */
+const ITEMS = [
+  { id: "bento", name: "便當",     desc: "回復血量" },
+  { id: "cut",   name: "刪去法",   desc: "答題時拿掉兩個錯的選項" },
+  { id: "ask",   name: "問主持人", desc: "請主持人給個提示（大多數時候是對的）" },
+  { id: "charm", name: "護身符",   desc: "這一題答錯也不會被打" },
+];
+const ITEM_MAX = 9;
+const itemN = id => Math.max(0, Math.floor(+SAVE.items[id]) || 0);
+function giveItem(id, n){ SAVE.items[id] = Math.min(ITEM_MAX, itemN(id) + n); }
+function rollItem(){ const r = Math.random() * 100; return r < 35 ? "bento" : r < 60 ? "cut" : r < 85 ? "ask" : "charm"; }
+
+/* ---------- 天賦（每升一級三選一） ---------- */
+const PERKS = [
+  { id: "hp",    name: "鐵胃",       desc: "血量上限 +8",                max: 99 },
+  { id: "exp",   name: "認真聽講",   desc: "打倒怪物的經驗值 +15%",      max: 99 },
+  { id: "drop",  name: "尋寶家",     desc: "怪物掉寶箱的機率 +12%",      max: 4 },
+  { id: "combo", name: "連擊達人",   desc: "連續答對 2 題就開始暴擊（原本要 3 題）", max: 1 },
+  { id: "heal",  name: "大胃王",     desc: "便當回復量 +20%",            max: 3 },
+  { id: "gcut",  name: "考古題",     desc: "立刻獲得 2 個刪去法",        max: 99, item: ["cut", 2] },
+  { id: "gask",  name: "熱線電話",   desc: "立刻獲得 2 個問主持人",      max: 99, item: ["ask", 2] },
+  { id: "gcharm", name: "平安符",    desc: "立刻獲得 1 個護身符",        max: 99, item: ["charm", 1] },
+];
+const perk = id => Math.max(0, Math.floor(+SAVE.perks[id]) || 0);
+
+/* 難度數值（2026-11 用模擬調整過：答對率 50%／60%／70%／80%／90% 的玩家，大約分別卡在第 4／6／10／16／37 關） */
+const BAL = { hp0: 30, hpLv: 4, hpPerk: 8, dmg0: 8, dmgF: 2, dmgF2: .03, monCap: 4, monStep: 3, bossBase: 3, bossStep: 5, bossCap: 5, drop: .3, dropPerk: .12, bossDrops: 1 };
+const maxHp = () => BAL.hp0 + (SAVE.lv - 1) * BAL.hpLv + perk("hp") * BAL.hpPerk;
+const needExp = () => 20 + SAVE.lv * 10;
+const monDmg = () => Math.round(BAL.dmg0 + SAVE.floor * BAL.dmgF + SAVE.floor * SAVE.floor * BAL.dmgF2);
+const critAt = () => 3 - Math.min(1, perk("combo"));                       // 連續答對幾題開始暴擊
+const rankOf = n => { let t = { name: "", line: "" }; ((DB && DB.titles) || []).forEach(x => { if (n >= x.min) t = x; }); return t; };
+
+/* ---------- 選題：沒看過的優先；前面幾關偏簡單，頭目偏難 ---------- */
+function nextQuestion(boss){
+  if (QUESTIONS.every(q => SAVE.seen[q.id])) SAVE.seen = {};
+  let pool = QUESTIONS.filter(q => !SAVE.seen[q.id]);
+  const prefs = boss ? [3, 2] : SAVE.floor <= 2 ? [1, 2] : [];
+  for (const lv of prefs){ const sub = pool.filter(q => q.lv === lv); if (sub.length){ pool = sub; break; } }
+  const q = pool[Math.floor(Math.random() * pool.length)];
+  return { q, opts: shuffle(q.a.map((t, i) => ({ t, right: i === 0 }))), used: {} };
+}
+function spawn(){
+  const boss = G.idx === PER_FLOOR - 1, f = SAVE.floor;
+  const base = MONSTERS[(f - 1 + G.idx * 2) % MONSTERS.length];
+  const hp = boss ? Math.min(BAL.bossCap, BAL.bossBase + Math.floor((f - 1) / BAL.bossStep)) : Math.min(BAL.monCap, 1 + Math.floor((f - 1) / BAL.monStep));
+  G.mon = { ...base, boss, name: boss ? "頭目・" + base.name : base.name, hp, max: hp, x: W + 30, hurt: 0, dead: 0 };
+  G.phase = "approach"; SFX.monster(boss); if (boss) MUSIC.play(bossBgmFor(SAVE.floor));
+}
+function float(text, x, y, color){ G.fx.push({ text, x, y, t: 0, color }); }
+function say(html){ $("#dlg").innerHTML = html; renderItems(); }
+function focusMsg(){ const el = $("#dlg .msg") || $("#dlg .q"); if (el){ el.tabIndex = -1; el.focus({ preventScroll: true }); } }
+// 手機螢幕比較矮：出題時把整個題目捲進畫面，答完把「繼續」捲進畫面
+function reveal(el){ try { el.scrollIntoView({ block: "nearest", behavior: RMOTION ? "auto" : "smooth" }); } catch (e) {} }
+function hud(){
+  $("#h-lv").textContent = SAVE.lv; $("#h-floor").textContent = `第 ${SAVE.floor} 關`;
+  $("#h-hp").style.width = (G.hp / maxHp() * 100) + "%"; $("#h-hpn").textContent = `${G.hp}/${maxHp()}`;
+  $("#h-xp").style.width = (SAVE.exp / needExp() * 100) + "%"; $("#h-xpn").textContent = `${SAVE.exp}/${needExp()}`;
+  renderItems(); renderFoot();
+}
+
+/* ---------- 道具列 ---------- */
+function canUse(id){
+  const c = G.cur, asking = G.phase === "ask" && c && c.picked == null;
+  if (!itemN(id)) return false;
+  if (id === "bento") return G.hp > 0 && G.hp < maxHp() && G.phase !== "title" && G.phase !== "dead" && G.phase !== "perk";
+  if (!asking || c.used[id]) return false;
+  if (id === "cut") return !c.used.ask;                                    // 先問了主持人就不能再刪去（避免剛好刪掉提示）
+  return true;
+}
+function renderItems(){
+  const box = $("#items"); if (!box) return;
+  box.innerHTML = ITEMS.map(it => `<button class="item" type="button" data-it="${it.id}" ${canUse(it.id) ? "" : "disabled"} title="${it.name}：${it.desc}" aria-label="${it.name}（剩 ${itemN(it.id)} 個）：${it.desc}">
+    <img src="${ICON[it.id]}" alt=""><span>${it.name}</span><b>${itemN(it.id)}</b></button>`).join("");
+}
+function useItem(id){
+  if (!canUse(id)) return;
+  const c = G.cur;
+  SAVE.items[id] = itemN(id) - 1;
+  if (id === "bento"){
+    const heal = Math.round(maxHp() * .4 * (1 + perk("heal") * .2)); G.hp = Math.min(maxHp(), G.hp + heal);
+    SFX.bento(); float("+" + heal + " HP", HERO_X, GROUND - 44, "#63c74d"); note(`吃了便當，回復 ${heal} 點血量。`);
+  } else if (id === "cut"){
+    c.used.cut = 1; SFX.cut();
+    const wrongs = shuffle(c.opts.map((o, k) => o.right ? -1 : k).filter(k => k >= 0)).slice(0, 2);
+    wrongs.forEach(k => { c.opts[k].gone = 1; const b = document.querySelector(`.opt[data-i="${k}"]`); if (b){ b.disabled = true; b.classList.add("gone"); b.setAttribute("aria-label", c.opts[k].t + "（已刪去）"); } });
+    note("刪去法：拿掉了兩個錯的選項。");
+  } else if (id === "ask"){
+    c.used.ask = 1; SFX.askHost();
+    const live = c.opts.map((o, k) => k).filter(k => !c.opts[k].gone), right = c.opts.findIndex(o => o.right);
+    const sure = Math.random() < .8, pickK = sure ? right : shuffle(live.filter(k => k !== right))[0];
+    const host = Math.random() < .5 ? { n: "二百五", img: "img/host-250.webp" } : { n: "鳳梨索", img: "img/host-pineapple.webp" };
+    const lines = ["我記得好像是", "這題我有印象，應該是", "嗯……我猜是", "錄的時候好像講過，是"];
+    const box = document.createElement("div"); box.className = "hint";
+    box.innerHTML = `<img src="${host.img}" alt=""><p><b>${host.n}：</b>${lines[Math.floor(Math.random() * lines.length)]}「${"ABCD"[pickK]}」吧？<small>（主持人也可能記錯喔）</small></p>`;
+    const opts = $("#dlg .opts"); if (opts) opts.after(box);
+  } else if (id === "charm"){
+    c.used.charm = 1; SFX.charm(); note("護身符發動：這一題答錯也不會被打。");
+  }
+  persist(); hud();
+}
+function note(text){ const n = $("#note"); if (!n) return; n.textContent = text; n.hidden = false; clearTimeout(note.t); note.t = setTimeout(() => { n.hidden = true; }, 2600); }
+
+/* ---------- 集數足跡 ---------- */
+function footStats(){
+  const all = (DB && DB.all_eps) || [], have = new Set(QUESTIONS.map(q => q.ep));
+  const lit = all.filter(e => SAVE.eps[e[0]]).length;
+  return { all, have, lit, total: all.filter(e => have.has(e[0])).length };
+}
+function renderFoot(){ const b = $("#foot-btn"); if (!b || !DB) return; const s = footStats(); $("#foot-n").textContent = `${s.lit}/${s.total}`; }
+function openFoot(){
+  SFX.blip();
+  const s = footStats(), dlg = $("#foot");
+  $("#foot-sum").innerHTML = `答對某一集的題目，就會點亮那一集。你已經走過 <b>${s.lit}</b>／${s.total} 集` + (s.all.length > s.total ? `<small>（全部 ${s.all.length} 集裡，有 ${s.total} 集已經有題目）</small>` : "");
+  $("#foot-grid").innerHTML = s.all.map(([id, label, title]) => {
+    const st = SAVE.eps[id] ? "lit" : s.have.has(id) ? "" : "none";
+    return `<button type="button" class="ep ${st}" data-ep="${id}" aria-label="${esc(title)}（${st === "lit" ? "已點亮" : st === "none" ? "還沒有題目" : "還沒點亮"}）">${esc(label)}</button>`;
+  }).join("");
+  $("#foot-info").innerHTML = "點一個集數看標題，可以直接去搜尋站聽那一集。";
+  dlg.hidden = false; document.body.style.overflow = "hidden"; $("#foot-x").focus();
+}
+function closeFoot(){ $("#foot").hidden = true; document.body.style.overflow = ""; $("#foot-btn").focus({ preventScroll: true }); }
+
+/* ---------- 標題畫面 ---------- */
+function title(){
+  MUSIC.play("title");
+  G.phase = "title"; G.mon = null; G.cur = null; G.hp = maxHp(); G.down = 0; G.combo = 0; hud();
+  const has = SAVE.floor > 1 || SAVE.lv > 1 || SAVE.exp > 0, r = rankOf(SAVE.best);
+  say(`<h2 class="msg">二百五和鳳梨索的冒險，需要你的節目知識！</h2>
+    <p class="sub">隊伍會自動前進，遇到怪物就出題。<b>答對</b>就攻擊，<b>答錯</b>會被打；連續答對會<b>暴擊</b>。打倒怪物拿經驗值，有機會掉<b>寶箱</b>，升級時可以選一個<b>天賦</b>。血歸零要重打這一關，等級和道具都還在。</p>
+    <p class="sub">題庫 <b>${QUESTIONS.length}</b> 題，來自 <b>${DB.episodes}</b> 集${SAVE.best ? `　｜　你最多通過 <b>${SAVE.best}</b> 關　<span class="rank">${esc(r.name)}</span>` : ""}</p>
+    <div class="go left"><button class="btn" id="go" type="button">${has ? `繼續冒險（第 ${SAVE.floor} 關・LV ${SAVE.lv}）` : "開始冒險"}</button>
+    ${has ? `<button class="link" id="reset" type="button">從第 1 關重新開始</button>` : ""}</div>`);
+  $("#go").onclick = startFloor;
+  if ($("#reset")) $("#reset").onclick = () => {
+    say(`<h2 class="msg">確定要重新開始嗎？</h2><p class="sub">等級、天賦、道具會重來，從第 1 關開始。最多通過 ${SAVE.best} 關的紀錄和集數足跡會保留。</p>
+      <div class="go left"><button class="btn" id="go" type="button">重新開始</button><button class="btn alt" id="back" type="button">取消</button></div>`);
+    $("#go").onclick = () => { SAVE.lv = 1; SAVE.exp = 0; SAVE.floor = 1; SAVE.items = {}; SAVE.perks = {}; persist(); startFloor(); };
+    $("#back").onclick = title; focusMsg();
+  };
+}
+function startFloor(){
+  SFX.start(); MUSIC.play(bgmFor(SAVE.floor));
+  G.idx = 0; G.mon = null; G.cur = null; G.hp = maxHp(); G.down = 0; G.fx = []; G.combo = 0; G.chest = null; G.phase = "walk"; G.t = 0; persist(); hud();
+  say(`<h2 class="msg">第 ${SAVE.floor} 關・${sceneFor(SAVE.floor).name}，出發！</h2><p class="sub">這一關有 ${PER_FLOOR} 隻怪物，最後一隻是頭目。</p>`); focusMsg();
+}
+
+/* ---------- 出題、作答 ---------- */
+function ask(){
+  G.cur = nextQuestion(G.mon.boss); G.phase = "ask";
+  const c = G.cur;
+  say(`<p class="who"><b>${esc(G.mon.name)}</b> 出題！　出自 ${esc(c.q.et)}</p><h2 class="q" tabindex="-1">${esc(c.q.q)}</h2>
+    <div class="opts">${c.opts.map((o, i) => `<button class="opt" type="button" data-i="${i}"><span class="k">${"ABCD"[i]}</span><span>${esc(o.t)}</span></button>`).join("")}</div>`);
+  focusMsg(); reveal($("#dlg")); SFX.ask();
+}
+function answer(i){
+  const cur = G.cur; if (!cur || cur.picked != null || G.phase !== "ask" || cur.opts[i].gone) return;
+  cur.picked = i; G.phase = "answered";
+  const ok = cur.opts[i].right, m = G.mon, q = cur.q, extra = [];
+  SAVE.seen[q.id] = 1;
+  // 匿名統計答錯率：每位玩家每題只記第一次作答，用了刪去法或問主持人的不算（只送「題目代號＋對或錯」，不記是誰）
+  if (!SAVE.stat[q.id]){ SAVE.stat[q.id] = 1; if (!cur.used.cut && !cur.used.ask) countAnswer(q, ok); }
+  if (ok){
+    G.combo++; G.comboT = 1.2;
+    const crit = G.combo >= critAt(), dmg = crit ? 2 : 1;
+    G.heroLunge = 1; m.hurt = 1; m.hp = Math.max(0, m.hp - dmg); float((crit ? "CRIT -" : "-") + dmg, m.x, GROUND - 40, crit ? "#ff7b1c" : "#ffe45c"); G.hit = { x: m.x - 8, y: GROUND - 20, t: 0, big: crit };
+    if (crit) SFX.crit(G.combo); else SFX.hit(G.combo);
+    if (crit) extra.push(`<b class="crit">${G.combo} 連擊・暴擊！</b>造成 2 點傷害。`);
+    else if (G.combo > 1) extra.push(`${G.combo} 連擊！再答對 ${critAt() - G.combo} 題就會暴擊。`);
+    if (!SAVE.eps[q.ep]){ SAVE.eps[q.ep] = 1; SFX.sparkle(.25); extra.push(`<b class="new">點亮新集數！</b>集數足跡 ${footStats().lit}/${footStats().total}`); }
+    if (m.hp <= 0){
+      m.dead = 0.001; SFX.defeat();
+      const bonus = 1 + Math.min(G.combo, 10) * .05 + perk("exp") * .15;
+      const gain = Math.round(((m.boss ? 20 : 10) + q.lv * 2) * bonus); SAVE.exp += gain; float("+" + gain + " EXP", HERO_X, GROUND - 48, "#fee761");
+      while (SAVE.exp >= needExp()){ SAVE.exp -= needExp(); SAVE.lv++; G.hp = maxHp(); G.levelUp = 1.6; G.pendingPerks++; SFX.levelup(); float("LEVEL UP!", HERO_X + 14, GROUND - 62, "#63c74d"); }
+      // 寶箱：頭目必掉道具；一般怪物有機率掉 1 個
+      const drops = m.boss ? BAL.bossDrops : (Math.random() < BAL.drop + perk("drop") * BAL.dropPerk ? 1 : 0);
+      if (drops){ const got = []; for (let k = 0; k < drops; k++){ const id = rollItem(); giveItem(id, 1); got.push(ITEMS.find(x => x.id === id).name); }
+        G.chest = { x: m.x, t: 0 }; SFX.chest(); extra.push(`<b class="new">寶箱！</b>獲得 ${got.join("、")}。`); }
+    }
+  } else {
+    const lost = G.combo; G.combo = 0;
+    G.monLunge = 1;
+    if (cur.used.charm){ SFX.guard(); float("GUARD", HERO_X, GROUND - 44, "#8ccbe6"); G.hit = { x: HERO_X + 8, y: GROUND - 20, t: 0 }; extra.push("護身符擋下了攻擊！"); }
+    else { SFX.hurt(); G.heroHurt = 1; const d = monDmg(); G.hp = Math.max(0, G.hp - d); float("-" + d, HERO_X, GROUND - 44, "#ffffff"); G.hit = { x: HERO_X + 8, y: GROUND - 20, t: 0 }; if (G.hp <= 0){ G.down = 0.001; MUSIC.stop(); SFX.down(); } }
+    if (lost > 1) extra.push(`${lost} 連擊中斷了。`);
+  }
+  persist(); hud();
+  document.querySelectorAll(".opt").forEach((b, k) => {
+    b.disabled = true; const o = cur.opts[k];
+    if (o.right){ b.classList.add("right"); b.setAttribute("aria-label", o.t + "（正確答案）"); }
+    else if (k === i){ b.classList.add("wrong"); b.setAttribute("aria-label", o.t + "（你選的，答錯）"); }
+    else if (!o.gone) b.classList.add("dim");
+  });
+  const url = "https://spiritboyaway.github.io/podcast-search/?ep=" + encodeURIComponent(q.ep) + (q.t != null ? "&t=" + q.t : "");
+  const verdict = ok ? (m.hp <= 0 ? `答對，打倒${m.boss ? "頭目" : "怪物"}了！` : "答對，攻擊成功！") : "答錯，被反擊了！";
+  const d = document.createElement("div");
+  d.innerHTML = `<p class="fb"><b class="${ok ? "ok" : "no"}">${verdict}</b>　${esc(q.x || "")}　<a href="${url}" target="_blank" rel="noopener">▶ 聽節目怎麼說</a></p>
+    ${extra.length ? `<p class="extra">${extra.join("　")}</p>` : ""}
+    <div class="go"><button class="btn" id="go" type="button">${G.pendingPerks ? "升級！選天賦 →" : "繼續 →"}</button></div>`;
+  $("#dlg").append(...d.childNodes);
+  $("#go").onclick = proceed; $("#go").focus({ preventScroll: true }); reveal($("#go").parentNode);
+}
+function choosePerk(){
+  G.phase = "perk";
+  const pool = shuffle(PERKS.filter(p => perk(p.id) < p.max)).slice(0, 3);
+  say(`<h2 class="msg">升到 LV ${SAVE.lv - G.pendingPerks + 1}！選一個天賦</h2><p class="sub">血量已經補滿。天賦會一直保留，直到從第 1 關重新開始。</p>
+    <div class="perks">${pool.map(p => `<button class="perk" type="button" data-p="${p.id}"><b>${p.name}</b><span>${p.desc}</span>${perk(p.id) && !p.item ? `<small>目前 ${perk(p.id)} 級</small>` : ""}</button>`).join("")}</div>`);
+  document.querySelectorAll(".perk").forEach(b => b.onclick = () => {
+    const p = PERKS.find(x => x.id === b.dataset.p);
+    SAVE.perks[p.id] = perk(p.id) + 1; if (p.item) giveItem(p.item[0], p.item[1]);
+    if (p.id === "hp") G.hp = Math.min(maxHp(), G.hp + 8);
+    G.pendingPerks--; SFX.perk(); persist(); hud(); proceed();
+  });
+  focusMsg(); reveal($("#dlg"));
+}
+function pickQuote(){
+  const qs = (DB && DB.quotes) || []; if (!qs.length) return null;
+  let k = Math.floor(Math.random() * qs.length); if (qs.length > 1 && k === SAVE.lastQuote) k = (k + 1) % qs.length;
+  SAVE.lastQuote = k; return qs[k];
+}
+function proceed(){
+  if (G.pendingPerks > 0) return choosePerk();
+  const m = G.mon;
+  if (G.hp <= 0){
+    G.phase = "dead"; MUSIC.stop();
+    say(`<h2 class="msg">隊伍倒下了……</h2><p class="sub">沒關係，等級、天賦和道具都還在。補滿血，重打第 ${SAVE.floor} 關吧！</p>
+      <div class="go"><button class="btn alt" id="sh" type="button">分享紀錄</button><button class="btn" id="go" type="button">重打這一關</button></div><p class="said" id="said"></p>`);
+    $("#go").onclick = startFloor; $("#sh").onclick = share; $("#go").focus({ preventScroll: true }); return;
+  }
+  if (m && m.hp <= 0){
+    G.mon = null; G.idx++;
+    if (G.idx >= PER_FLOOR){
+      const done = SAVE.floor, newBest = done > SAVE.best, before = rankOf(SAVE.best).name;
+      SAVE.best = Math.max(SAVE.best, done); SAVE.floor = done + 1; G.phase = "clear"; G.clearT = 0; MUSIC.stop(); SFX.clear();
+      const r = rankOf(SAVE.best), qt = pickQuote(); persist();
+      const quoteHtml = qt ? `<figure class="quote"><img src="${qt.w === "二百五" ? "img/host-250.webp" : "img/host-pineapple.webp"}" alt=""><blockquote><p>「${esc(qt.q)}」</p>
+        <footer>—— ${esc(qt.w)}・${esc(qt.et)}　<a href="https://spiritboyaway.github.io/podcast-search/?ep=${encodeURIComponent(qt.ep)}&t=${qt.t}" target="_blank" rel="noopener">▶ 聽這一段</a></footer></blockquote></figure>` : "";
+      say(`<h2 class="msg">第 ${done} 關過關！</h2>
+        ${quoteHtml}
+        <p class="sub">目前 <b>LV ${SAVE.lv}</b>${newBest ? "，刷新個人紀錄！" : `，個人紀錄是通過 ${SAVE.best} 關。`}　稱號：<span class="rank">${esc(r.name)}</span>${newBest && r.name !== before ? "　← 新稱號！" : ""}</p>
+        <div class="go"><button class="btn alt" id="sh" type="button">分享紀錄</button><button class="btn" id="go" type="button">前往第 ${SAVE.floor} 關 →</button></div><p class="said" id="said"></p>`);
+      $("#go").onclick = startFloor; $("#sh").onclick = share; hud(); $("#go").focus({ preventScroll: true }); return;
+    }
+    G.phase = "walk"; G.t = 0; G.cur = null;
+    say(`<h2 class="msg">繼續前進……</h2><p class="sub">${G.idx === PER_FLOOR - 1 ? "前面有很強的氣息，頭目要來了！" : `這一關還有 ${PER_FLOOR - G.idx} 隻怪物。`}${G.combo > 1 ? `　目前 ${G.combo} 連擊中。` : ""}</p>`); return;
+  }
+  ask();
+}
+$("#dlg").addEventListener("click", e => { const b = e.target.closest(".opt"); if (b) answer(+b.dataset.i); });
+$("#items").addEventListener("click", e => { const b = e.target.closest(".item"); if (b) useItem(b.dataset.it); });
+$("#foot-btn").addEventListener("click", openFoot);
+function renderSnd(){ const b = $("#snd-btn"); b.textContent = SFX.on() ? "音效：開" : "音效：關"; b.setAttribute("aria-pressed", SFX.on()); }
+$("#snd-btn").addEventListener("click", () => { SFX.toggle(); renderSnd(); });
+renderSnd();
+function renderBgm(){ const b = $("#bgm-btn"); b.textContent = MUSIC.on() ? "音樂：開" : "音樂：關"; b.setAttribute("aria-pressed", MUSIC.on()); }
+$("#bgm-btn").addEventListener("click", () => { MUSIC.toggle(); renderBgm(); });
+renderBgm();
+// 一般按鈕（繼續、分享…）按下時的小提示音
+$("#dlg").addEventListener("click", e => { if (e.target.closest(".btn, .link")) SFX.blip(); });
+$("#foot-x").addEventListener("click", closeFoot);
+$("#foot").addEventListener("click", e => {
+  if (e.target === $("#foot")) return closeFoot();
+  const b = e.target.closest(".ep"); if (!b) return;
+  const e2 = ((DB && DB.all_eps) || []).find(x => x[0] === b.dataset.ep); if (!e2) return;
+  const st = SAVE.eps[e2[0]] ? "已點亮" : footStats().have.has(e2[0]) ? "還沒點亮（冒險中答對這集的題目就會點亮）" : "這集還沒有題目";
+  $("#foot-info").innerHTML = `<b>${esc(e2[2])}</b><br>${st}　<a href="${esc(/^https:\/\/open\.firstory\.fm\//.test(e2[3] || "") ? e2[3] : "https://spiritboyaway.github.io/podcast-search/?ep=" + encodeURIComponent(e2[0]))}" target="_blank" rel="noopener">▶ 去聽這一集</a>`;
+});
+document.addEventListener("keydown", e => {
+  if (!$("#foot").hidden){ if (e.key === "Escape") closeFoot(); return; }
+  if (e.ctrlKey || e.metaKey || e.altKey || e.key.length !== 1) return;
+  const k = "1234".indexOf(e.key) >= 0 ? "1234".indexOf(e.key) : "abcd".indexOf(e.key.toLowerCase());
+  if (G.phase === "ask" && k >= 0){ e.preventDefault(); answer(k); }
+});
+
+/* ---------- 分享紀錄 ---------- */
+function shareText(){ return `我在「神隱少年團 QA大冒險」通過了 ${SAVE.best} 關（LV ${SAVE.lv}）\n稱號：${rankOf(SAVE.best).name}\n你能闖到第幾關？ ${SITE_URL}`; }
+async function share(){
+  const said = $("#said"), btn = $("#sh"); btn.disabled = true; said.textContent = "製作圖片中…";
+  try {
+    const c = document.createElement("canvas"); c.width = 1080; c.height = 1080;
+    const g = c.getContext("2d"), INK = "#1b1a18", F = '"Noto Sans TC","Microsoft JhengHei","PingFang TC",sans-serif', r = rankOf(SAVE.best);
+    try { await Promise.all([document.fonts.load('900 60px "Noto Sans TC"', "神隱少年團QA大冒險通過關稱號" + r.name), document.fonts.load('900 60px "Noto Serif TC"', "隱" + r.name)]); } catch (e) {}
+    g.fillStyle = "#f4efe6"; g.fillRect(0, 0, 1080, 1080);
+    g.fillStyle = "rgba(27,26,24,.08)"; for (let y = 16; y < 1080; y += 30) for (let x = 16; x < 1080; x += 30){ g.beginPath(); g.arc(x, y, 2.4, 0, 7); g.fill(); }
+    g.fillStyle = "#edb65a"; g.beginPath(); g.arc(120, 100, 54, 0, 7); g.fill();
+    g.fillStyle = "#fff"; g.font = '900 64px "Noto Serif TC",serif'; g.textAlign = "center"; g.textBaseline = "middle"; g.fillText("隱", 120, 102);
+    g.fillStyle = INK; g.textAlign = "left"; g.font = "900 56px " + F; g.fillText("神隱少年團 QA大冒險", 196, 102);
+    // 把目前的像素畫面放大貼上（不做平滑，保持像素感）
+    g.fillStyle = INK; g.fillRect(72, 192, 960, 540); g.imageSmoothingEnabled = false; g.drawImage(cv, 60, 180, 960, 540);
+    g.lineWidth = 8; g.strokeStyle = INK; g.strokeRect(60, 180, 960, 540);
+    g.textAlign = "center"; g.fillStyle = INK; g.font = "900 68px " + F; g.fillText(`通過 ${SAVE.best} 關・LV ${SAVE.lv}`, 540, 806);
+    let fs = 64; g.font = `900 ${fs}px "Noto Serif TC",serif`;
+    while (g.measureText(r.name).width > 800 && fs > 36){ fs -= 4; g.font = `900 ${fs}px "Noto Serif TC",serif`; }
+    const rw = g.measureText(r.name).width; g.fillStyle = "#ffe45c"; g.fillRect(540 - rw / 2 - 16, 902, rw + 32, fs * .5);
+    g.fillStyle = INK; g.fillText(r.name, 540, 900);
+    g.font = "700 32px " + F; g.fillText("你能闖到第幾關？ " + SITE_URL.replace("https://", "").replace(/\/$/, ""), 540, 1012);
+    const blob = await new Promise(res => c.toBlob(res, "image/png"));
+    const file = new File([blob], "神隱少年團QA大冒險.png", { type: "image/png" });
+    if (matchMedia("(hover:none)").matches && navigator.canShare && navigator.canShare({ files: [file] })){
+      await navigator.share({ files: [file], text: shareText() }); said.textContent = "";
+    } else {
+      const a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = file.name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+      let copied = false; try { await navigator.clipboard.writeText(shareText()); copied = true; } catch (e) {}
+      said.textContent = "圖片已下載" + (copied ? "，文字也複製好了" : "") + "，貼到社群跟朋友比一比吧！";
+    }
+  } catch (e) { said.textContent = e && e.name === "AbortError" ? "" : "圖片製作失敗，可以直接截圖分享。"; }
+  btn.disabled = false;
+}
+
+/* ---------- 每一格畫面更新 ---------- */
+function update(dt){
+  G.t += dt;
+  G.moving = G.phase === "walk" || G.phase === "approach" || G.phase === "title";
+  if (G.moving) G.scroll += 46 * dt;
+  if (G.phase === "walk" && G.t > 1.3) spawn();
+  if (G.phase === "approach"){ G.mon.x -= 46 * dt * 1.5; if (G.mon.x <= MON_X){ G.mon.x = MON_X; ask(); } }
+  ["heroLunge", "monLunge"].forEach(k => { if (G[k] > 0) G[k] = Math.max(0, G[k] - dt * 2.6); });
+  if (G.heroHurt > 0) G.heroHurt = Math.max(0, G.heroHurt - dt * 2.2);
+  if (G.levelUp > 0) G.levelUp = Math.max(0, G.levelUp - dt);
+  if (G.down) G.down = Math.min(1, G.down + dt * 2);
+  if (G.phase === "clear") G.clearT += dt;
+  if (G.mon){ if (G.mon.hurt > 0) G.mon.hurt = Math.max(0, G.mon.hurt - dt * 2.2); if (G.mon.dead) G.mon.dead = Math.min(1, G.mon.dead + dt * 1.8); }
+  if (G.hit){ G.hit.t += dt; if (G.hit.t > 0.45) G.hit = null; }
+  if (G.chest){ G.chest.t += dt; if (G.chest.t > 2.4) G.chest = null; }
+  if (G.comboT > 0) G.comboT = Math.max(0, G.comboT - dt * 3);
+  G.fx.forEach(f => f.t += dt); G.fx = G.fx.filter(f => f.t < 1.1);
+}
+const lunge = v => v > 0 ? Math.sin((1 - v) * Math.PI) * 26 : 0;        // 衝出去再回來
+
+/* =====================================================================
+   像素畫：角色和怪物都是用字元排出來的小圖，每個字元代表一種顏色
+   ===================================================================== */
+const C = { Y: "#f7d64a", y: "#c99a1e", S: "#f6c9a0", G: "#22223a", N: "#2c3e6b", n: "#1c2847", P: "#4a4a5e", K: "#1b1a18",
+            H: "#4a3328", h: "#33221b", R: "#63c74d", E: "#b3303a", B: "#ff7aa8", W: "#fff4e0", w: "#d9c9ad", D: "#2f7d5b",
+            M: "#5fcde4", m: "#3978a8", V: "#9b6bd6", v: "#5d3f94", O: "#ffffff", o: "#c8d4e3", X: "#1b1a18", A: "#fee761", T: "#e43b44", g: "#8b9bb4" };
+const HERO = [[
+  "....YYYYY...", "...YYYYYYY..", "..YYYYYYYYY.", "..yYYSSSSY..", "..yYSGGSGG..", "..ySSSSSSS..", "...SSSSSS...", "...NNNNNN...",
+  "..NNNNNNNN..", "..NSNNNNSN..", "..nSNNNNSn..", "...nNNNNn...", "...PPPPPP...", "...PP..PP...", "...PP..PP...", "..KKK.KKK..."],[
+  "....YYYYY...", "...YYYYYYY..", "..YYYYYYYYY.", "..yYYSSSSY..", "..yYSGGSGG..", "..ySSSSSSS..", "...SSSSSS...", "...NNNNNN...",
+  "..NNNNNNNN..", "..NSNNNNSN..", "..nSNNNNSn..", "...nNNNNn...", "...PPPPPP...", "....PPPP....", "....PPP.....", "...KKKK....."]];
+const PAL = [[
+  "....HHHHH...", ".R.HHHHHHH.R", "RRHHHHHHHHRR", ".HHHHSSSSHH.", ".HHHSESSESH.", ".Hh.SSSSSS.H", ".Hh..SSSS..H", ".h..WWBBWW.h",
+  "...WWWBBWWW.", "...SWWWWWWS.", "....wWWWWw..", "...DDDDDDDD.", "...DDDDDDDD.", "....SS..SS..", "....SS..SS..", "....KK..KK.."],[
+  "....HHHHH...", ".R.HHHHHHH.R", "RRHHHHHHHHRR", ".HHHHSSSSHH.", ".HHHSESSESH.", ".Hh.SSSSSS.H", "Hh...SSSS.H.", "h...WWBBWW.h",
+  "...WWWBBWWW.", "...SWWWWWWS.", "....wWWWWw..", "...DDDDDDDD.", "...DDDDDDDD.", ".....SSSS...", ".....SSS....", "....KKKK...."]];
+const MON = {
+  slime:    ["......MMMM......", "....MMMMMMMM....", "...MMOMMMMMMM...", "..MMOOMMMMMMMM..", "..MMMMMMMMMMMM..", ".MMMXXMMMMXXMMM.", ".MMMXXMMMMXXMMM.",
+             ".MMMMMMMMMMMMMM.", "MMMMMMXXXXMMMMMM", "MMMMMMMMMMMMMMMM", "mMMMMMMMMMMMMMMm", ".mmmmmmmmmmmmmm."],
+  bat:      ["V..............V", "VV............VV", "VVV..VVVVVV..VVV", "VVVVVVVVVVVVVVVV", "vVVVVATVVTAVVVVv", ".vVVVVVVVVVVVVv.", "..vVVVOVVOVVVv..",
+             "...vVVVVVVVVv...", "....v.vVVv.v....", "........vv......"],
+  ghost:    ["....OOOOOOOO....", "..OOOOOOOOOOOO..", ".OOOOOOOOOOOOOO.", ".OOOXXOOOOXXOOO.", "OOOOXXOOOOXXOOOO", "OOOOOOOOOOOOOOOO", "OOOOOOOXXOOOOOOO",
+             "OOOOOOOXXOOOOOOO", "OOOOOOOOOOOOOOOO", "oOOOOOOOOOOOOOOo", "oOOooOOOooOOOooO", ".o..oOo...oO..o."],
+  mushroom: ["....TTTTTTTT....", "..TTTOOTTTTTTT..", ".TTTTOOTTTOOTTT.", "TTTTTTTTTTOOTTTT", "TTOOTTTTTTTTTTTT", "TTOOTTTTTTTTOOTT", ".TTTTTTTTTTTTTT.",
+             "....WWWWWWWW....", "...WWXWWWWXWW...", "...WWXWWWWXWW...", "...WWWWXXWWWW...", "....wWWWWWWw...."],
+  golem:    ["...gggggggggg...", "..gggggggggggg..", "..ggAAggggAAgg..", "..ggAXggggAXgg..", "..gggggggggggg..", "gg.ggXXXXXXgg.gg", "gggggggggggggggg",
+             "gg.gggggggggg.gg", "gg.gPggggggPg.gg", "...gggg..gggg...", "...gggg..gggg...", "..PPPPP..PPPPP.."],
+};
+const FLYING = { bat: 1, ghost: 1 };
+const CHEST = [["..........", ".hhhhhhhh.", "hHHHHHHHHh", "hHHHAAHHHh", "hhhhAAhhhh", "hHHHHHHHHh", "hHHHHHHHHh", "hhhhhhhhhh"],
+               [".hhhhhhhh.", "hHHHHHHHHh", "hhhhhhhhhh", "hAAAAAAAAh", "hhhhAAhhhh", "hHHHHHHHHh", "hHHHHHHHHh", "hhhhhhhhhh"]];
+// 道具小圖示（8×8）
+const ITEM_ART = {
+  bento: ["........", "TTTTTTTT", "TOOOOOOT", "TOOTAOOT", "TORROAOT", "TOOOOOOT", "TTTTTTTT", "........"],
+  cut:   ["X.....X.", ".X...X..", "..X.X...", "...X....", "..X.X...", ".OO.OO..", "O..OO..O", ".OO..OO."],
+  ask:   [".OOOOOO.", "OOOXXOOO", "OOXOOXOO", "OOOOXOOO", "OOOXOOOO", ".OOOOOO.", "..OO....", ".O......"],
+  charm: ["...AA...", "..A..A..", ".TTTTTT.", ".TAAAAT.", ".TATTAT.", ".TAAAAT.", ".TTTTTT.", "..T..T.."],
+};
+const ICON = {};
+const CROWN = ["A.A.A.A", "AAAAAAA", "ATAAATA"];
+// 森林小路的調色盤（目前用夜晚那一組）
+const THEMES = [
+  { sky: ["#1d2b53", "#2a3470", "#4a4089", "#8a5a9b", "#d9777a", "#f4a56e"], stars: 1, sun: "#fee761", hill: "#3b2f6b", trunk: "#3a2a2a", leaf: "#1f5c4d", leaf2: "#2f7d5b", grass: "#3fa66b", grass2: "#2f7d5b", tuft: "#63c74d", dirt: "#7a4a2b", dirt2: "#5a3520" },
+  { sky: ["#0b1026", "#101737", "#16204a", "#1d2b5e", "#27386f", "#33477f"], stars: 1, sun: "#f4f4f4", hill: "#141b3d", trunk: "#1b1a2a", leaf: "#143a3f", leaf2: "#1f5c5a", grass: "#2a6f5b", grass2: "#1f5347", tuft: "#3fa66b", dirt: "#4a3a4a", dirt2: "#33283a" },
+  { sky: ["#4aa3df", "#62b4e6", "#7cc4ec", "#99d3f1", "#b8e2f5", "#d7f0f9"], stars: 0, sun: "#fff6c4", hill: "#6fae8f", trunk: "#6b4a2b", leaf: "#2f8f5b", leaf2: "#5fc27a", grass: "#63c74d", grass2: "#3fa66b", tuft: "#b6e86a", dirt: "#a86a3a", dirt2: "#7a4a2b" },
+];
+const cv = $("#cv"), g = cv.getContext("2d");
+function sprite(map, x, y, s, flash){
+  for (let r = 0; r < map.length; r++) for (let c = 0; c < map[r].length; c++){
+    const ch = map[r][c]; if (ch === ".") continue;
+    g.fillStyle = flash ? "#fff" : C[ch]; g.fillRect(Math.round(x + c * s), Math.round(y + r * s), s, s);
+  }
+}
+const hill = i => 14 + Math.round(Math.sin(i * 0.9) * 6 + Math.sin(i * 2.3 + 1) * 4);
+/* =====================================================================
+   背景：每一種背景是一個 draw()，都用 256×144 的遊戲單位畫，地面在 GROUND（112）
+   ===================================================================== */
+const rnd = i => { const x = Math.sin(i * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
+const R = (c, x, y, w, h) => { g.fillStyle = c; g.fillRect(Math.round(x), Math.round(y), Math.max(1, w), Math.max(1, h)); };
+// 重複的捲動圖層：speed 越小越遠、捲越慢；sp 是每一格的寬度
+function layer(speed, sp, fn){ const off = G.scroll * speed, i0 = Math.floor(off / sp) - 1, n = Math.ceil(W / sp) + 3; for (let i = i0; i < i0 + n; i++) fn(Math.round(i * sp - off), i); }
+function bands(cols){ R(cols[cols.length - 1], 0, 0, W, H); cols.forEach((c, i) => R(c, 0, i * 16, W, 17)); }
+const pick = (arr, v) => arr[Math.floor(v * arr.length) % arr.length];
+const now = () => performance.now() / 1000;
+
+const BGS = {
+  forest: { name: "森林小路", draw(){
+    const T = THEMES[1];   // 夜晚的森林，有螢火蟲
+    T.sky.forEach((c, i) => R(c, 0, i * 16, W, 17));
+    if (T.stars){ for (let i = 0; i < 18; i++) R("#fff", (i * 53 + 7) % W, (i * 29) % 44, 1, 1); }
+    else { [[30, 18, 26], [120, 30, 34], [170, 12, 20]].forEach(([x, y, w]) => { const cx = Math.round(((x - G.scroll * .06) % (W + 40) + W + 40) % (W + 40)) - 20; R("#fff", cx, y, w, 5); R("#fff", cx + 5, y - 3, w - 12, 3); }); }
+    R(T.sun, 198, 14, 12, 12); [[198, 14], [208, 14], [198, 24], [208, 24]].forEach(([x, y]) => R(T.sky[1], x, y, 2, 2));
+    layer(.15, 8, (x, i) => { const h = hill(i); R(T.hill, x, 96 - h, 8, h + 16); });
+    layer(.5, 44, (x, i) => { const th = 22 + (((i % 3) + 3) % 3) * 5; R(T.trunk, x + 10, GROUND - 12, 4, 12);
+      R(T.leaf, x + 2, GROUND - 2 - th, 20, th - 8); R(T.leaf, x + 6, GROUND - 10 - th, 12, 8); R(T.leaf2, x + 4, GROUND - th, 6, 6); });
+    R(T.grass, 0, GROUND, W, 5); R(T.grass2, 0, GROUND + 5, W, 2); R(T.dirt, 0, GROUND + 7, W, H - GROUND - 7);
+    layer(1, 16, x => { R(T.tuft, x + 3, GROUND, 2, 2); R(T.tuft, x + 11, GROUND + 1, 2, 1); R(T.dirt2, x + 5, GROUND + 12, 3, 2); R(T.dirt2, x + 13, GROUND + 21, 2, 2); R(T.dirt2, x + 1, GROUND + 26, 3, 2); });
+    parts(18, P_FIRE, { vy: 3, vx: 4, par: .5 });
+  }},
+
+  street: { name: "台灣街景", draw(){
+    bands(["#355070", "#6d597a", "#b56576", "#e56b6f", "#eaac8b", "#f6d6a8"]);
+    R("#ffe8b0", 30, 40, 12, 12); R("#fff4d6", 32, 42, 8, 8);
+    layer(.15, 34, (x, i) => {                                         // 遠方公寓
+      const h = 40 + Math.floor(rnd(i) * 30), top = 100 - h; R("#5e4b6e", x, top, 30, h + 12);
+      for (let wy = top + 5; wy < 94; wy += 8) for (let wx = x + 4; wx < x + 26; wx += 7) R(rnd(i * 7 + wy * 3 + wx) > .6 ? "#f6d6a8" : "#4a3a5a", wx, wy, 4, 4);
+      if (rnd(i + 3) > .5){ R("#4a3a5a", x + 6, top - 6, 9, 5); R("#4a3a5a", x + 7, top - 1, 1, 1); R("#4a3a5a", x + 13, top - 1, 1, 1); }  // 水塔
+    });
+    layer(.5, 48, (x, i) => {                                          // 騎樓街屋
+      const c = pick(["#e9d8a6", "#cfd8dc", "#f2cc8f", "#d8e2dc", "#e6c2b0"], rnd(i)), top = GROUND - 64 + Math.floor(rnd(i + 1) * 12);
+      R(c, x, top, 48, GROUND - top); R("#00000018", x + 46, top, 2, GROUND - top);
+      for (let fy = top + 5; fy < GROUND - 32; fy += 14){ R("#6b7b8c", x + 5, fy, 34, 9); R("#a9bccf", x + 6, fy + 1, 32, 7); for (let k = x + 8; k < x + 39; k += 4) R("#55606e", k, fy + 1, 1, 7); }
+      R("#3d3a4b", x, GROUND - 25, 48, 3); R("#f6dca6", x + 3, GROUND - 22, 42, 22);
+      R("#d9b87a", x + 7, GROUND - 13, 14, 13); R("#c99a5b", x + 26, GROUND - 16, 13, 16); R("#e76f51", x + 9, GROUND - 11, 3, 3); R("#2a9d8f", x + 14, GROUND - 11, 3, 3);
+      R(c, x, GROUND - 22, 3, 22); R(c, x + 45, GROUND - 22, 3, 22);
+      const sc = pick(["#d62828", "#f77f00", "#1d70b8", "#2a9d8f"], rnd(i + 5));   // 直立招牌
+      R("#1b1a18", x + 39, top + 4, 9, 28); R(sc, x + 40, top + 5, 7, 26); for (let k = 0; k < 4; k++) R("#fff", x + 42, top + 8 + k * 6, 3, 3);
+      if (rnd(i + 9) > .45){ const sx = x + 6 + Math.floor(rnd(i + 4) * 22), y = GROUND - 9, mc = pick(["#e63946", "#457b9d", "#f4a261", "#9b5de5"], rnd(i + 2));  // 機車
+        R("#1b1a18", sx, y + 5, 4, 4); R("#1b1a18", sx + 11, y + 5, 4, 4); R(mc, sx + 2, y + 2, 12, 4); R(mc, sx + 11, y - 3, 2, 6); R("#1b1a18", sx + 9, y - 4, 5, 1); R("#2b2b2b", sx + 3, y + 1, 7, 1); }
+    });
+    layer(.7, 110, x => {                                              // 電線桿＋電線
+      for (let t = 0; t < 110; t++){ const s = Math.round(Math.sin(t / 110 * Math.PI) * 6); R("#2a2433", x + 21 + t, 35 + s, 1, 1); R("#2a2433", x + 21 + t, 41 + s, 1, 1); }
+      R("#3b3445", x + 20, 30, 3, GROUND - 30); R("#3b3445", x + 13, 34, 17, 2); R("#3b3445", x + 15, 40, 13, 2); R("#7a6f80", x + 14, 45, 6, 7);
+    });
+    R("#c1683c", 0, GROUND, W, 9); R("#9c4f2e", 0, GROUND + 4, W, 1); layer(1, 8, x => R("#9c4f2e", x, GROUND, 1, 9));
+    R("#e0e0e0", 0, GROUND + 9, W, 2); R("#4a4e5a", 0, GROUND + 11, W, H); layer(1, 24, x => R("#f1f1f1", x, GROUND + 22, 12, 2));
+  }},
+
+  studio: { name: "錄音室", draw(){
+    const tm = now();
+    R("#efe3cf", 0, 0, W, GROUND); layer(.3, 8, x => R("#e6d6bd", x, 6, 3, 80)); R("#d8c7ad", 0, 0, W, 6);
+    R("#b08968", 0, 86, W, GROUND - 86); R("#8d6346", 0, 86, W, 2); layer(.3, 16, x => R("#9c7656", x, 90, 1, GROUND - 92));
+    layer(.3, 72, (x, i) => {
+      const k = ((i % 4) + 4) % 4;
+      if (k === 0){                                                    // 漫畫書櫃
+        R("#7f5539", x + 6, 18, 58, 66); R("#5e3d26", x + 8, 20, 54, 62);
+        for (let s = 0; s < 3; s++){ const sy = 20 + s * 20; R("#7f5539", x + 8, sy + 18, 54, 2); let bx = x + 9, j = 0;
+          while (bx < x + 59){ const w = 2 + Math.floor(rnd(i * 31 + s * 7 + j) * 2), h = 11 + Math.floor(rnd(i * 13 + s * 5 + j) * 6);
+            R(pick(["#e63946", "#457b9d", "#f4a261", "#2a9d8f", "#f1faee", "#ffb703", "#8338ec"], rnd(i * 17 + s + j * 3)), bx, sy + 18 - h, Math.min(w, x + 61 - bx), h); bx += w + (rnd(j + i * 3 + s) > .85 ? 3 : 0); j++; } }
+      } else if (k === 1){                                             // 窗戶
+        R("#7f5539", x + 12, 18, 48, 40); R("#9fd3e8", x + 14, 20, 44, 36); R("#d6efff", x + 14, 20, 44, 10); R("#ffffff", x + 20, 26, 10, 3);
+        R("#7f5539", x + 35, 20, 2, 36); R("#7f5539", x + 14, 37, 44, 2);
+        R("#e76f51", x + 8, 15, 8, 48); R("#e76f51", x + 56, 15, 8, 48); R("#c95a40", x + 10, 15, 2, 48); R("#c95a40", x + 59, 15, 2, 48); R("#5e3d26", x + 6, 14, 60, 2);
+      } else if (k === 2){                                             // 吸音棉＋ON AIR 燈
+        for (let a = 0; a < 8; a++) for (let b = 0; b < 7; b++) R((a + b) % 2 ? "#3d405b" : "#2b2d42", x + 12 + a * 6, 32 + b * 6, 6, 6);
+        const on = Math.floor(tm * 1.2) % 2 === 0;
+        if (on){ g.globalAlpha = .25; R("#ff3b3b", x + 15, 10, 42, 19); g.globalAlpha = 1; }
+        R("#1b1a18", x + 20, 13, 32, 12); R(on ? "#ff3b3b" : "#7a2a2a", x + 21, 14, 30, 10);
+        [[24, 17, 3, 4], [28, 17, 3, 4], [34, 17, 3, 4], [38, 17, 1, 4], [41, 17, 3, 4], [46, 17, 2, 4]].forEach(([a, b, w, h]) => R(on ? "#fff" : "#b07a7a", x + a, b, w, h));
+      } else {                                                         // 海報
+        R("#1b1a18", x + 8, 22, 24, 32); R("#ffe45c", x + 9, 23, 22, 30); R("#edb65a", x + 14, 29, 12, 12); R("#1b1a18", x + 17, 33, 2, 2); R("#1b1a18", x + 22, 33, 2, 2); R("#1b1a18", x + 11, 46, 18, 2); R("#1b1a18", x + 13, 50, 14, 1);
+        R("#1b1a18", x + 38, 28, 24, 30); R("#8ccbe6", x + 39, 29, 22, 28); R("#ffffff", x + 44, 33, 12, 12); R("#1b1a18", x + 47, 37, 2, 2); R("#1b1a18", x + 52, 37, 2, 2); R("#c4452f", x + 42, 48, 16, 3);
+      }
+    });
+    layer(.6, 140, x => {                                              // 麥克風架＋一箱漫畫
+      const mx = x + 30; R("#2b2d42", mx, 72, 2, GROUND - 72); R("#2b2d42", mx - 6, GROUND - 2, 14, 2); R("#2b2d42", mx, 72, 13, 2); R("#3d405b", mx + 11, 64, 7, 11); R("#8d99ae", mx + 12, 65, 5, 9); R("#c0c6d0", mx + 13, 66, 1, 7);
+      R("#c9a66b", x + 84, GROUND - 14, 24, 14); R("#a8844f", x + 84, GROUND - 14, 24, 3); R("#e63946", x + 88, GROUND - 20, 4, 6); R("#457b9d", x + 93, GROUND - 19, 4, 5); R("#ffb703", x + 98, GROUND - 21, 3, 7);
+    });
+    R("#9c6644", 0, GROUND, W, H); R("#6b4630", 0, GROUND, W, 2);
+    for (let r = 0; r < 6; r++){ const y = GROUND + 2 + r * 6; R("#7f5539", 0, y + 5, W, 1); const off = Math.floor(G.scroll + r * 13) % 40; for (let x = -40; x < W + 40; x += 40) R("#7f5539", x - off, y, 1, 6); }
+  }},
+
+  summer: { name: "夏日海邊平交道", draw(){
+    const tm = now();
+    bands(["#3a86ff", "#4d96ff", "#62a6ff", "#7fb8ff", "#a3ceff", "#cfe6ff"]);
+    layer(.04, 150, (x, i) => { const y = 22 + Math.floor(rnd(i) * 8);       // 積雨雲
+      R("#ffffff", x + 10, y + 16, 64, 12); R("#ffffff", x + 18, y + 6, 26, 14); R("#ffffff", x + 34, y - 2, 24, 20); R("#ffffff", x + 54, y + 8, 16, 10); R("#ffffff", x + 40, y - 8, 12, 8);
+      R("#e1ecff", x + 10, y + 25, 64, 3); R("#e1ecff", x + 56, y + 16, 14, 2); });
+    R("#2b7bd6", 0, 70, W, 26); R("#5fa8f0", 0, 70, W, 3); R("#1f66b8", 0, 84, W, 12);
+    for (let k = 0; k < 16; k++){ if (Math.floor(tm * 2 + k) % 3) continue; const px = (((k * 47 - G.scroll * .2) % W) + W) % W; R("#ffffff", px, 75 + (k * 7) % 16, 3, 1); }
+    R("#9aa5b1", 0, 90, W, 5); R("#5c677d", 0, 89, W, 1);             // 電車軌道
+    const tt = tm % 13;
+    if (tt < 4.5){ const tx = -140 + tt * 100;
+      for (let c = 0; c < 3; c++){ const cx = tx + c * 44; R("#f1faee", cx, 75, 42, 14); R("#2a9d8f", cx, 84, 42, 3); R("#1b1a18", cx, 75, 42, 1);
+        for (let w = 0; w < 5; w++) R("#457b9d", cx + 3 + w * 8, 78, 5, 5); R("#1b1a18", cx + 5, 89, 5, 2); R("#1b1a18", cx + 32, 89, 5, 2); }
+      R("#333", tx + 108, 71, 10, 1); R("#333", tx + 112, 71, 1, 4); }
+    R("#6ab04c", 0, 95, W, GROUND - 95); layer(.8, 12, (x, i) => { R("#4f8f3a", x + 3, 97 + (((i % 3) + 3) % 3) * 4, 2, 2); });
+    R("#e9ecef", 0, 100, W, 2); R("#cfd4da", 0, 104, W, 1); layer(.8, 16, x => R("#e9ecef", x, 98, 2, 12));
+    layer(.8, 150, (x, i) => {                                         // 平交道標誌＋電線桿
+      R("#6c757d", x + 40, 46, 2, GROUND - 46);
+      for (let t = 0; t <= 10; t++){ const col = t % 4 < 2 ? "#ffd60a" : "#1b1a18"; R(col, x + 36 + t, 48 + t, 2, 2); R(col, x + 46 - t, 48 + t, 2, 2); }
+      const bl = Math.floor(tm * 2) % 2; R("#1b1a18", x + 34, 62, 14, 6); R(bl ? "#ff3b3b" : "#5a1a1a", x + 35, 63, 4, 4); R(bl ? "#5a1a1a" : "#ff3b3b", x + 43, 63, 4, 4);
+    });
+    R("#ced4da", 0, GROUND, W, 2); R("#5c5f66", 0, GROUND + 2, W, H); layer(1, 28, x => R("#f8f9fa", x, GROUND + 18, 14, 2));
+  }},
+
+  school: { name: "櫻花校園", draw(){
+    const tm = now();
+    bands(["#a8dadc", "#bde0e6", "#d1e8ee", "#e8e4ee", "#f6dbe6", "#fde2e4"]);
+    layer(.06, 8, (x, i) => { const h = hill(i) - 2; R("#b8c7e0", x, 84 - h, 8, h + 30); });
+    layer(.2, 120, (x, i) => { const top = 46;                          // 校舍
+      R("#f4efe6", x, top, 120, GROUND - top); R("#d9cfc1", x, top, 120, 3); R("#e6ddd0", x + 118, top, 2, GROUND - top);
+      for (let r = 0; r < 3; r++) for (let c = 0; c < 8; c++){ const wx = x + 6 + c * 14, wy = top + 8 + r * 14; R("#8fb8de", wx, wy, 9, 8); R("#dbe9f6", wx, wy, 9, 2); }
+      if ((((i % 3) + 3) % 3) === 0){ R("#f4efe6", x + 48, top - 20, 24, 22); R("#c8553d", x + 45, top - 24, 30, 4); R("#1b1a18", x + 54, top - 15, 12, 12); R("#ffffff", x + 55, top - 14, 10, 10); R("#1b1a18", x + 59, top - 13, 2, 5); R("#1b1a18", x + 59, top - 9, 4, 1); }
+    });
+    R("#5b8e5d", 0, 92, W, 2); R("#5b8e5d", 0, 102, W, 1); layer(.6, 6, x => R("#5b8e5d", x, 92, 1, 20));
+    layer(.75, 84, (x, i) => {                                         // 櫻花樹
+      R("#7a5040", x + 18, 72, 5, GROUND - 72); R("#7a5040", x + 12, 70, 7, 2); R("#7a5040", x + 22, 68, 8, 2);
+      R("#ffc2d1", x + 2, 52, 38, 18); R("#ffc2d1", x + 8, 43, 26, 11); R("#ffb3c6", x + 4, 64, 34, 9); R("#ffd6e0", x + 12, 46, 10, 4);
+      for (let k = 0; k < 7; k++) R("#ff8fab", x + 5 + Math.floor(rnd(i * 7 + k) * 32), 47 + Math.floor(rnd(i * 5 + k) * 24), 2, 2);
+    });
+    R("#7fb069", 0, GROUND, W, 3); R("#e8d5b7", 0, GROUND + 3, W, H); layer(1, 20, (x, i) => { R("#ffb3c6", x + Math.floor(rnd(i) * 16), GROUND + 8 + Math.floor(rnd(i + 1) * 20), 2, 1); R("#d9bf9a", x + 3, GROUND + 14, 4, 1); });
+    for (let k = 0; k < 26; k++){ const sp = 10 + (k % 5) * 3; const px = (((k * 53 - tm * sp * 1.4 - G.scroll * .9) % W) + W) % W, py = (k * 31 + tm * sp) % (GROUND + 12);   // 飄落的花瓣
+      R(k % 2 ? "#ff8fab" : "#ffc2d1", px, py, 2, 1); }
+  }},
+
+  dungeon: { name: "地下城", draw(){
+    const tm = now();
+    R("#3d3f5c", 0, 0, W, GROUND);
+    for (let r = 0; r < 14; r++){ const y = r * 8, off = ((G.scroll * .4 + (r % 2) * 8) % 16 + 16) % 16;
+      for (let x = -16; x < W + 16; x += 16){ const id = Math.floor((x + G.scroll * .4) / 16) * 31 + r; R(rnd(id) > .88 ? "#424562" : "#4b4e6d", x - off + 1, y + 1, 14, 6); } }
+    R("#26283d", 0, 0, W, 6); layer(.4, 24, (x, i) => { const h = 4 + Math.floor(rnd(i) * 9); for (let k = 0; k < h; k++) R("#26283d", x + 6 + Math.floor(k / 2), 6 + k, 8 - k, 1); });
+    layer(.4, 128, x => { for (let y = 6; y < 46; y += 4) R("#8d99ae", x + 82 + ((y / 4) % 2), y, 2, 3); R("#8d99ae", x + 80, 46, 6, 2); });
+    layer(.4, 80, (x, i) => {                                          // 火把
+      const f = Math.floor(tm * 8 + i * 3) % 3;
+      g.globalAlpha = .07; [[18, 24, 46, 52], [24, 30, 34, 40], [30, 38, 22, 26]].forEach(([a, b, w, h]) => R("#ffbe0b", x + a, b, w, h)); g.globalAlpha = 1;
+      R("#6c584c", x + 39, 58, 4, 11); R("#4a3b33", x + 37, 66, 8, 2);
+      R("#fb5607", x + 38, 50 - f, 6, 9 + f); R("#ffbe0b", x + 39, 53 - f, 4, 6); R("#fff3b0", x + 40, 56, 2, 3);
+    });
+    R("#5a5f80", 0, GROUND, W, H); R("#7a80a3", 0, GROUND, W, 2);
+    for (let r = 0; r < 3; r++){ const y = GROUND + 2 + r * 10; R("#474b66", 0, y + 9, W, 1); const off = Math.floor(G.scroll + r * 11) % 24; for (let x = -24; x < W + 24; x += 24) R("#474b66", x - off, y, 1, 10); }
+    layer(1, 22, (x, i) => { if (rnd(i) > .6) R("#4f772d", x + 4, GROUND, 6, 2); });
+  }},
+};
+/* ---------- 畫圖小工具 ---------- */
+const hsl = (h, s, l) => `hsl(${((Math.round(h) % 360) + 360) % 360},${s}%,${l}%)`;
+function circ(cx, cy, r, c){ for (let dy = -r; dy <= r; dy++){ const w = Math.floor(Math.sqrt(r * r - dy * dy)); R(c, cx - w, cy + dy, 2 * w + 1, 1); } }
+function tri(x, y, w, h, c){ for (let k = 0; k < h; k++){ const ww = Math.max(1, Math.round(w * (k + 1) / h)); R(c, x + (w - ww) / 2, y + k, ww, 1); } }      // 尖端朝上
+function vtri(x, y, w, h, c){ for (let k = 0; k < h; k++){ const ww = Math.max(1, Math.round(w * (1 - k / h))); R(c, x + (w - ww) / 2, y + k, ww, 1); } }    // 尖端朝下
+// 飄落／飄起的粒子：雪、雨、花瓣、螢火蟲、火星、泡泡
+function parts(n, paint, o){
+  const tm = now(), par = o.par != null ? o.par : .9, vyB = o.vy != null ? o.vy : 12, vxB = o.vx || 0;
+  for (let k = 0; k < n; k++){
+    const vy = vyB * (.6 + rnd(k * 3.1) * .8), vx = vxB * (.6 + rnd(k * 5.7) * .8);
+    const px = (((k * 53 + tm * vx - G.scroll * par) % W) + W) % W;
+    const py = (((rnd(k) * (H + 10) + tm * vy) % (H + 10)) + H + 10) % (H + 10) - 5;
+    paint(px, py, k, tm);
+  }
+}
+const P_SNOW = (x, y, k) => R("#ffffff", x, y, k % 3 ? 1 : 2, k % 3 ? 1 : 2);
+const P_RAIN = (x, y) => { g.globalAlpha = .6; R("#c8dcf0", x, y, 1, 4); g.globalAlpha = 1; };
+const P_PETAL = (x, y, k) => R(k % 2 ? "#ff8fab" : "#ffc2d1", x, y, 2, 1);
+const P_FIRE = (x, y, k, tm) => { if (Math.sin(tm * 3 + k * 1.3) > .1) R("#f9f871", x, y, 1, 1); };
+const P_EMBER = (x, y, k) => R(k % 2 ? "#ff7b1c" : "#ffd166", x, y, 1, 1);
+const P_BUBBLE = (x, y, k) => { g.globalAlpha = .6; R("#d8f3ff", x, y, k % 3 ? 1 : 2, k % 3 ? 1 : 2); g.globalAlpha = 1; };
+const m3 = i => ((i % 3) + 3) % 3;
+
+/* ---------- 新增的手工背景 ---------- */
+Object.assign(BGS, {
+  oldstreet: { name: "紅磚老街", draw(){
+    bands(["#8ecae6", "#a2d2e8", "#b8dcec", "#cde6f0", "#e2f0f4", "#f4f8f6"]);
+    layer(.06, 8, (x, i) => { const h = hill(i) + 4; R("#9db8a8", x, 90 - h, 8, h + 20); });
+    layer(.5, 56, (x, i) => {
+      const top = GROUND - 72, c = pick(["#b5523b", "#a8493a", "#bd5d43"], rnd(i));
+      R(c, x, top, 56, 72); for (let y = top + 3; y < GROUND; y += 4) R("#00000020", x, y, 56, 1);
+      R("#e8dcc8", x, top - 6, 56, 6); R("#e8dcc8", x + 18, top - 14, 20, 8); circ(x + 28, top - 10, 2, c);
+      for (const wx of [x + 9, x + 34]){ R("#e8dcc8", wx - 1, top + 12, 15, 20); R("#4d6a7a", wx + 1, top + 14, 11, 16); R("#6d8a9a", wx + 1, top + 14, 11, 3); R("#5a8f6a", wx - 4, top + 13, 3, 18); R("#5a8f6a", wx + 14, top + 13, 3, 18); }
+      R("#e8dcc8", x, GROUND - 34, 56, 3);
+      for (const ax of [x + 5, x + 32]){ circ(ax + 9, GROUND - 21, 9, "#e8dcc8"); R("#e8dcc8", ax, GROUND - 21, 19, 21); circ(ax + 9, GROUND - 21, 7, "#f2c38b"); R("#f2c38b", ax + 2, GROUND - 21, 15, 21); R("#c99a5b", ax + 4, GROUND - 9, 11, 9); }
+      circ(x + 28, GROUND - 26, 2, "#e63946");
+    });
+    R("#c9bba5", 0, GROUND, W, H); R("#a89a84", 0, GROUND, W, 2); layer(1, 18, x => R("#a89a84", x, GROUND + 2, 1, 30)); R("#b3a58f", 0, GROUND + 12, W, 1); R("#b3a58f", 0, GROUND + 22, W, 1);
+  }},
+
+  nightmarket: { name: "夜市", draw(){
+    const tm = now();
+    bands(["#0f1630", "#152043", "#1c2a55", "#26366a", "#2f427a", "#3b4f88"]);
+    layer(.12, 26, (x, i) => { const top = GROUND - (40 + Math.floor(rnd(i) * 36)); R("#1a2240", x, top, 26, GROUND - top);
+      for (let wy = top + 4; wy < GROUND - 20; wy += 6) for (let wx = x + 3; wx < x + 22; wx += 6) if (rnd(i * 7 + wy + wx) > .7) R("#f6c177", wx, wy, 3, 3); });
+    layer(.5, 64, (x, i) => { for (let t = 0; t < 64; t++){ const s = Math.round(Math.sin(t / 64 * Math.PI) * 5); R("#0b0f20", x + t, 28 + s, 1, 1);
+      if (t % 8 === 4){ const on = Math.floor(tm * 2 + t / 8 + i) % 3 !== 0; R(on ? pick(["#ffd166", "#ff6b6b", "#7ae582"], rnd(i * 9 + t)) : "#555555", x + t, 29 + s, 2, 2); } } });
+    layer(.5, 64, (x, i) => {
+      const cc = pick(["#d62828", "#1d70b8", "#2a9d8f", "#f77f00"], rnd(i));
+      R("#1b1a18", x + 11, GROUND - 61, 34, 11); R("#ffd23f", x + 12, GROUND - 60, 32, 9); for (let k = 0; k < 4; k++) R("#d62828", x + 15 + k * 7, GROUND - 58, 5, 5);
+      R("#6b4a32", x + 5, GROUND - 50, 2, 50); R("#6b4a32", x + 49, GROUND - 50, 2, 50);
+      for (let k = 0; k < 14; k++) R(k % 2 ? "#ffffff" : cc, x + k * 4, GROUND - 50, 4, 8); for (let k = 0; k < 7; k++) circ(x + 3 + k * 8, GROUND - 42, 2, k % 2 ? "#ffffff" : cc);
+      R("#ffe8b0", x + 7, GROUND - 38, 42, 20); R("#c47a3a", x + 3, GROUND - 18, 50, 18); R("#e0a060", x + 3, GROUND - 18, 50, 3);
+      for (let k = 0; k < 5; k++){ R("#8a4a2a", x + 9 + k * 8, GROUND - 24, 2, 6); R(pick(["#e76f51", "#f4a261", "#e9c46a"], rnd(i + k)), x + 8 + k * 8, GROUND - 28, 4, 4); }
+      g.globalAlpha = .35; for (let k = 0; k < 3; k++){ const p = (tm * .6 + k / 3 + rnd(i)) % 1; R("#ffffff", x + 14 + k * 12 + Math.sin(tm * 2 + k) * 2, GROUND - 30 - p * 16, 3, 3); } g.globalAlpha = 1;
+    });
+    R("#3a3a46", 0, GROUND, W, H); R("#55556a", 0, GROUND, W, 2); g.globalAlpha = .22; layer(.5, 64, x => R("#ffd166", x + 4, GROUND + 2, 48, 10)); g.globalAlpha = 1;
+    layer(1, 30, x => R("#2c2c38", x + 4, GROUND + 20, 12, 1));
+  }},
+
+  temple: { name: "廟口", draw(){
+    const tm = now();
+    bands(["#5c3d6b", "#8a4f7d", "#c9667a", "#ee8f6b", "#f6b26b", "#fcd59a"]); circ(46, 44, 9, "#ffe0a3");
+    layer(.06, 8, (x, i) => { const h = hill(i); R("#6a4a6e", x, 94 - h, 8, h + 20); });
+    layer(.3, 230, (x, i) => {
+      const X = x + 40, b = GROUND;
+      R("#b03a2e", X, b - 40, 140, 40); for (let k = 0; k < 9; k++) R("#7a1f1a", X + 4 + k * 16, b - 40, 4, 40); R("#7a1f1a", X, b - 4, 140, 4);
+      for (const dx of [X + 30, X + 59, X + 88]){ R("#c8102e", dx, b - 30, 22, 26); R("#e8b923", dx + 10, b - 30, 2, 26); circ(dx + 5, b - 18, 1, "#e8b923"); circ(dx + 16, b - 18, 1, "#e8b923"); }
+      R("#e8b923", X + 55, b - 39, 30, 7); for (let k = 0; k < 3; k++) R("#7a1f1a", X + 59 + k * 8, b - 37, 4, 3);
+      R("#2f6b5a", X - 8, b - 50, 156, 10); R("#3f8a72", X - 8, b - 50, 156, 3); for (let k = 0; k < 7; k++){ R("#2f6b5a", X - 8 - k, b - 50 - k, 3, 2); R("#2f6b5a", X + 145 + k, b - 50 - k, 3, 2); }
+      R("#b03a2e", X + 30, b - 62, 80, 12); R("#2f6b5a", X + 20, b - 72, 100, 10); R("#3f8a72", X + 20, b - 72, 100, 3); for (let k = 0; k < 8; k++){ R("#2f6b5a", X + 20 - k, b - 72 - k, 3, 2); R("#2f6b5a", X + 117 + k, b - 72 - k, 3, 2); }
+      for (let k = 0; k < 12; k++) R(pick(["#e63946", "#f4a261", "#2a9d8f", "#ffd166", "#457b9d"], rnd(i * 5 + k)), X + 24 + k * 8, b - 75, 4, 3);
+      circ(X + 70, b - 80, 4, "#e8b923");
+    });
+    layer(.55, 96, x => { for (let t = 0; t < 96; t++) R("#3d2a1d", x + t, 22 + Math.round(Math.sin(t / 96 * Math.PI) * 4), 1, 1);
+      for (let k = 1; k < 4; k++){ const lx = x + k * 24, ly = 22 + Math.round(Math.sin(k * 24 / 96 * Math.PI) * 4); R("#3d2a1d", lx, ly, 1, 4); R("#d62828", lx - 3, ly + 4, 7, 9); R("#ffd166", lx - 3, ly + 4, 7, 1); R("#ffd166", lx - 3, ly + 12, 7, 1); R("#ff8a5c", lx - 1, ly + 6, 2, 5); } });
+    layer(.6, 170, x => { const bx = x + 100; R("#8a6d3b", bx, GROUND - 14, 20, 12); R("#a8874d", bx - 2, GROUND - 16, 24, 3); R("#5a4628", bx + 2, GROUND - 2, 3, 2); R("#5a4628", bx + 15, GROUND - 2, 3, 2); R("#a8874d", bx + 3, GROUND - 20, 2, 4); R("#a8874d", bx + 15, GROUND - 20, 2, 4);
+      g.globalAlpha = .4; for (let k = 0; k < 5; k++){ const p = (tm * .4 + k / 5) % 1; R("#d9d4cc", bx + 8 + Math.sin(tm * 1.5 + k * 2) * 4 * p, GROUND - 18 - p * 40, 3, 3); } g.globalAlpha = 1; });
+    R("#bfb3a3", 0, GROUND, W, H); R("#a39684", 0, GROUND, W, 2); layer(1, 20, x => R("#a39684", x, GROUND + 2, 1, 30)); R("#a39684", 0, GROUND + 14, W, 1);
+  }},
+
+  mrt: { name: "捷運月台", draw(){
+    const tm = now();
+    R("#d9dde2", 0, 0, W, GROUND); R("#c4c9d0", 0, 0, W, 14); layer(.5, 32, x => { R("#b3b9c2", x, 0, 1, 14); R("#ffffff", x + 6, 10, 20, 2); });
+    R("#2b2f36", 0, 40, W, GROUND - 42);
+    const tt = tm % 11;
+    if (tt < 6){ const tx = W + 10 - tt * 110; for (let c = 0; c < 5; c++){ const cx = tx + c * 72; R("#dfe3e8", cx, 46, 70, 52); R("#2a6fdb", cx, 78, 70, 4); R("#1b1a18", cx + 70, 46, 2, 52);
+      for (let w = 0; w < 4; w++) R("#5a6b80", cx + 6 + w * 16, 52, 10, 16); R("#9aa5b1", cx + 30, 52, 10, 46); } }
+    layer(.5, 40, x => { R("#5a6470", x, 40, 4, GROUND - 42); R("#5a6470", x, 40, 40, 3); g.globalAlpha = .22; R("#bfe3f5", x + 4, 43, 36, GROUND - 47); g.globalAlpha = .45; R("#ffffff", x + 8, 46, 2, 30); g.globalAlpha = 1; R("#f2c230", x + 18, GROUND - 22, 8, 2); });
+    layer(.5, 160, x => { R("#5a6470", x + 69, 14, 2, 10); R("#1b1a18", x + 40, 24, 60, 12); for (let k = 0; k < 10; k++){ const on = (Math.floor(tm * 4) + k) % 10 < 7; R(on ? "#ff9f1c" : "#3a2a10", x + 43 + k * 5.6, 27, 4, 6); }
+      R("#eef0f3", x + 120, 14, 16, GROUND - 14); R("#cfd4da", x + 134, 14, 2, GROUND - 14); R("#1d4ed8", x + 122, 50, 12, 12); R("#ffffff", x + 124, 55, 8, 2); R("#ffffff", x + 127, 52, 2, 8); });
+    R("#b9bec6", 0, GROUND, W, H); R("#f2c230", 0, GROUND + 3, W, 4); layer(1, 4, x => R("#d9a91a", x, GROUND + 4, 2, 2)); layer(1, 24, x => R("#a3a9b3", x, GROUND + 8, 1, 24)); R("#a3a9b3", 0, GROUND + 20, W, 1);
+  }},
+
+  ricefield: { name: "稻田三合院", draw(){
+    bands(["#5fa8e8", "#76b7ec", "#8ec5f0", "#a8d3f3", "#c3e1f6", "#ddeef8"]);
+    layer(.04, 120, (x, i) => { const y = 16 + Math.floor(rnd(i) * 14); R("#ffffff", x + 10, y, 30, 6); R("#ffffff", x + 16, y - 4, 16, 4); });
+    layer(.05, 8, (x, i) => { const h = hill(i) + 12; R("#5f8f6f", x, 84 - h, 8, h + 20); });
+    layer(.1, 8, (x, i) => { const h = Math.round(hill(i * 1.7 + 5) * .6); R("#86b096", x, 89 - h, 8, h + 20); });
+    layer(.3, 210, x => { const X = x + 60, b = 92;
+      R("#b5523b", X, b - 16, 60, 16); R("#7a3b2e", X - 4, b - 22, 68, 6); R("#8f4a3a", X - 4, b - 22, 68, 2); for (let k = 0; k < 4; k++){ R("#7a3b2e", X - 4 - k, b - 22 - k, 2, 1); R("#7a3b2e", X + 66 + k, b - 22 - k, 2, 1); }
+      R("#3d2a1d", X + 26, b - 12, 8, 12); R("#e8dcc8", X + 8, b - 12, 8, 6); R("#e8dcc8", X + 44, b - 12, 8, 6);
+      R("#b5523b", X - 24, b - 10, 20, 10); R("#7a3b2e", X - 26, b - 14, 24, 4); R("#b5523b", X + 64, b - 10, 20, 10); R("#7a3b2e", X + 62, b - 14, 24, 4); });
+    R("#6fb85a", 0, 92, W, GROUND - 92);
+    for (let r = 0; r < 5; r++){ const y = 93 + r * 4; R("#9ed8e8", 0, y + 2, W, 1); const off = ((G.scroll * (.6 + r * .08)) % 6 + 6) % 6; for (let x = -6; x < W + 6; x += 6) R("#4f9a3f", x - off, y, 2, 2); }
+    R("#a8875a", 0, 108, W, 2);
+    layer(.7, 190, (x, i) => { if (rnd(i) < .5) return; const ex = x + 40; R("#ffffff", ex, 96, 5, 3); R("#ffffff", ex + 4, 93, 1, 4); R("#ffffff", ex + 4, 92, 3, 1); R("#f2c230", ex + 7, 92, 2, 1); R("#333333", ex + 1, 99, 1, 3); R("#333333", ex + 3, 99, 1, 3); });
+    R("#c8a878", 0, GROUND, W, H); R("#b08f60", 0, GROUND, W, 2); layer(1, 14, (x, i) => R("#b08f60", x + Math.floor(rnd(i) * 10), GROUND + 8 + Math.floor(rnd(i + 3) * 20), 3, 1));
+  }},
+
+  rooftop: { name: "頂樓天台", draw(){
+    bands(["#4a90d9", "#6aa7e2", "#8bbdea", "#aed3f1", "#d0e7f7", "#f0f6fb"]);
+    layer(.03, 170, x => { const y = 20; R("#ffffff", x + 10, y + 12, 56, 10); R("#ffffff", x + 20, y + 2, 22, 12); R("#ffffff", x + 38, y - 4, 18, 16); R("#e6f0fa", x + 10, y + 20, 56, 2); });
+    layer(.08, 18, (x, i) => { const h = 20 + Math.floor(rnd(i) * 34); R("#b8c8d8", x, 96 - h, 16, h + 16); for (let wy = 96 - h + 3; wy < 94; wy += 5) R("#a4b6c8", x + 2, wy, 12, 1); });
+    layer(.35, 210, x => { const X = x + 40;
+      R("#d8d2c4", X, GROUND - 50, 36, 50); R("#c4bdae", X + 34, GROUND - 50, 2, 50); R("#bdb6a6", X - 2, GROUND - 53, 40, 4); R("#7d8a96", X + 10, GROUND - 30, 14, 30); R("#e9c46a", X + 21, GROUND - 16, 2, 2);
+      const T = X + 80; R("#8d99ae", T + 2, GROUND - 34, 2, 34); R("#8d99ae", T + 20, GROUND - 34, 2, 34); R("#8d99ae", T + 2, GROUND - 20, 20, 1); R("#c9d1d9", T, GROUND - 54, 24, 20); R("#aeb7c0", T, GROUND - 54, 24, 3); R("#aeb7c0", T + 20, GROUND - 54, 4, 20); });
+    R("#4f7a5a", 0, 62, W, 3); layer(.6, 24, x => R("#4f7a5a", x, 62, 3, GROUND - 62));
+    g.globalAlpha = .45; layer(.6, 4, x => { for (let y = 66; y < GROUND; y += 4) R("#4f7a5a", x + ((y / 4) % 2 ? 2 : 0), y, 1, 1); }); g.globalAlpha = 1;
+    R("#a9aeb3", 0, GROUND, W, H); R("#8f959b", 0, GROUND, W, 2); layer(1, 32, x => R("#959ba1", x, GROUND + 2, 1, 30)); R("#959ba1", 0, GROUND + 16, W, 1);
+  }},
+
+  shrine: { name: "神社鳥居", draw(){
+    bands(["#3f5f5a", "#4f736b", "#678a7e", "#86a392", "#a9bfa8", "#cfd9bf"]);
+    layer(.12, 18, (x, i) => { const h = 50 + Math.floor(rnd(i) * 30); tri(x, GROUND - h - 6, 18, h, "#2f4f43"); });
+    layer(.25, 26, (x, i) => { const h = 40 + Math.floor(rnd(i + 7) * 26); tri(x, GROUND - h - 4, 22, h, "#3d6354"); R("#3d6354", x, GROUND - 6, 26, 6); });
+    layer(.45, 170, x => { const X = x + 60;
+      R("#d1342b", X + 4, GROUND - 58, 5, 58); R("#d1342b", X + 43, GROUND - 58, 5, 58); R("#a82a22", X + 7, GROUND - 58, 2, 58); R("#a82a22", X + 46, GROUND - 58, 2, 58);
+      R("#d1342b", X, GROUND - 48, 52, 4); R("#d1342b", X - 4, GROUND - 60, 60, 4); R("#1b1a18", X - 6, GROUND - 64, 64, 4);
+      for (let k = 0; k < 4; k++){ R("#1b1a18", X - 6 - k, GROUND - 64 - Math.floor(k / 2), 2, 2); R("#1b1a18", X + 58 + k, GROUND - 64 - Math.floor(k / 2), 2, 2); }
+      R("#1b1a18", X + 22, GROUND - 58, 8, 10); R("#e8b923", X + 23, GROUND - 57, 6, 8); R("#1b1a18", X + 3, GROUND - 4, 7, 4); R("#1b1a18", X + 42, GROUND - 4, 7, 4); });
+    layer(.6, 80, x => { const X = x + 10; R("#9a9a92", X + 3, GROUND - 6, 10, 6); R("#8a8a82", X + 5, GROUND - 16, 6, 10); R("#9a9a92", X + 1, GROUND - 24, 14, 8); R("#ffd166", X + 5, GROUND - 22, 6, 4); tri(X, GROUND - 31, 16, 7, "#8a8a82"); R("#8a8a82", X + 7, GROUND - 33, 2, 2); });
+    R("#cfc8b8", 0, GROUND, W, H); R("#b5ad9b", 0, GROUND, W, 2);
+    layer(1, 10, (x, i) => { R("#b5ad9b", x + Math.floor(rnd(i) * 8), GROUND + 4 + Math.floor(rnd(i + 1) * 26), 1, 1); R("#e2dccd", x + Math.floor(rnd(i + 2) * 8), GROUND + 4 + Math.floor(rnd(i + 5) * 26), 1, 1); });
+    layer(1, 40, x => { R("#a8a294", x + 6, GROUND + 10, 24, 6); R("#bdb7a8", x + 6, GROUND + 10, 24, 1); });
+    parts(14, (x, y, k) => R(k % 2 ? "#e9f5db" : "#c7e59a", x, y, 1, 1), { vy: 6, vx: -4, par: .5 });
+  }},
+
+  festival: { name: "夏日祭典", draw(){
+    const tm = now();
+    bands(["#0c0f2b", "#121844", "#1a2156", "#232a66", "#2c3375", "#363d82"]); for (let i = 0; i < 14; i++) R("#ffffff", (i * 67 + 11) % W, (i * 23) % 40, 1, 1);
+    for (let j = 0; j < 3; j++){                                       // 煙火
+      const tt = tm * .45 + j * .37, sd = Math.floor(tt), ph = tt - sd, cx = 30 + rnd(sd * 3 + j * 11) * 196, cy = 16 + rnd(sd * 5 + j * 7) * 32;
+      const col = pick(["#ff595e", "#ffca3a", "#8ac926", "#4cc9f0", "#ff8fab", "#ffffff"], rnd(sd * 7 + j));
+      if (ph < .15) R(col, cx, cy + (1 - ph / .15) * 40, 1, 3);
+      else { const p = (ph - .15) / .85, r = 4 + p * 20; g.globalAlpha = 1 - p; for (let a = 0; a < 14; a++){ const an = a / 14 * Math.PI * 2; R(col, cx + Math.cos(an) * r, cy + Math.sin(an) * r + p * 6, 2, 2); } g.globalAlpha = 1; }
+    }
+    layer(.1, 8, (x, i) => { const h = hill(i) - 4; R("#141838", x, 98 - h, 8, h + 20); });
+    layer(.5, 22, (x, i) => { R("#1b1a18", x, 34, 22, 1); g.globalAlpha = .2; R("#ffd166", x + 5, 32, 13, 15); g.globalAlpha = 1;
+      R(i % 2 ? "#f1faee" : "#e63946", x + 8, 36, 7, 9); R("#1b1a18", x + 8, 36, 7, 1); R("#1b1a18", x + 8, 44, 7, 1); R(i % 2 ? "#e63946" : "#f1faee", x + 10, 39, 3, 3); });
+    layer(.5, 70, (x, i) => { const cc = pick(["#e63946", "#1d70b8", "#2a9d8f"], rnd(i));
+      R("#6b4a32", x + 6, GROUND - 44, 2, 44); R("#6b4a32", x + 58, GROUND - 44, 2, 44); R(cc, x + 2, GROUND - 46, 62, 6);
+      for (let k = 0; k < 6; k++){ R(cc, x + 4 + k * 10, GROUND - 40, 8, 9); R("#ffffff", x + 6 + k * 10, GROUND - 37, 4, 3); }
+      R("#ffe8b0", x + 8, GROUND - 31, 50, 13); R("#8a5a3b", x + 4, GROUND - 18, 58, 18); R("#a8744b", x + 4, GROUND - 18, 58, 2);
+      if (rnd(i + 3) > .5){ R("#4cc9f0", x + 12, GROUND - 15, 24, 8); R("#ff7b1c", x + 16, GROUND - 12, 3, 2); R("#ff7b1c", x + 26, GROUND - 10, 3, 2); }
+      else for (let k = 0; k < 4; k++) circ(x + 15 + k * 10, GROUND - 22, 3, pick(["#ff8fab", "#ffd166", "#a0e7e5", "#e63946"], rnd(i * 3 + k)));
+    });
+    R("#5e4a3a", 0, GROUND, W, H); R("#7a6450", 0, GROUND, W, 2); g.globalAlpha = .2; layer(.5, 22, x => R("#ffd166", x + 4, GROUND + 2, 14, 6)); g.globalAlpha = 1;
+  }},
+
+  onsen: { name: "溫泉街", draw(){
+    const tm = now();
+    bands(["#3b3355", "#544472", "#76598c", "#9a729c", "#c08ea4", "#e0b0aa"]); circ(204, 26, 7, "#fff4d6");
+    layer(.06, 8, (x, i) => { const h = hill(i) + 8; R("#4a4060", x, 90 - h, 8, h + 20); });
+    layer(.5, 64, x => { const top = GROUND - 66;
+      R("#6b4a32", x, top + 10, 60, GROUND - top - 10); R("#3d2a1d", x, top + 10, 60, 2); R("#3d2a1d", x, top + 34, 60, 2); for (let k = 0; k < 5; k++) R("#3d2a1d", x + k * 15, top + 10, 2, GROUND - top - 10);
+      for (const wx of [x + 4, x + 33]){ R("#ffe2a8", wx, top + 15, 23, 14); for (let k = 1; k < 4; k++) R("#c9a27a", wx + k * 6, top + 15, 1, 14); R("#c9a27a", wx, top + 21, 23, 1); }
+      R("#3a3a44", x - 4, top + 4, 68, 6); R("#4a4a56", x - 4, top + 4, 68, 2); R("#3a3a44", x - 3, top + 31, 66, 4);
+      R("#ffe2a8", x + 18, GROUND - 26, 24, 26); R("#2f3f6b", x + 16, GROUND - 28, 28, 12); R("#25335a", x + 29, GROUND - 28, 2, 12);
+      R("#ffffff", x + 24, GROUND - 20, 12, 2); R("#ffffff", x + 23, GROUND - 22, 1, 2); R("#ffffff", x + 36, GROUND - 22, 1, 2); for (let k = 0; k < 3; k++){ R("#ffffff", x + 26 + k * 3, GROUND - 26, 1, 2); R("#ffffff", x + 27 + k * 3, GROUND - 24, 1, 2); }
+      R("#3d2a1d", x + 52, GROUND - 34, 1, 4); R("#e9c46a", x + 50, GROUND - 30, 5, 7); });
+    R("#8a8578", 0, GROUND, W, H); R("#6f6a5e", 0, GROUND, W, 2); layer(1, 16, x => R("#77726a", x, GROUND + 2, 1, 30)); R("#77726a", 0, GROUND + 12, W, 1); R("#77726a", 0, GROUND + 22, W, 1);
+    g.globalAlpha = .4; layer(.8, 46, (x, i) => { for (let k = 0; k < 4; k++){ const p = (tm * .35 + k / 4 + rnd(i)) % 1; R("#ffffff", x + 10 + Math.sin(tm + k * 2 + i) * 5, GROUND + 4 - p * 50, 4 + Math.floor(p * 3), 3); } }); g.globalAlpha = 1;
+  }},
+
+  snowtown: { name: "雪國小鎮", draw(){
+    bands(["#6d7f99", "#8293ab", "#98a8bd", "#aebccd", "#c5d0dc", "#dce4ec"]);
+    layer(.05, 8, (x, i) => { const h = hill(i) + 12; R("#e8eef4", x, 88 - h, 8, h + 20); R("#c7d2de", x + 5, 88 - h + 3, 3, h + 17); });
+    layer(.5, 72, (x, i) => { const wc = pick(["#8a5a44", "#5a6f8a", "#7a4a5a", "#6a7a5a"], rnd(i)), top = GROUND - 30 - Math.floor(rnd(i + 2) * 10);
+      R("#5a4a44", x + 40, top - 26, 6, 12); R(wc, x + 6, top, 48, GROUND - top); tri(x, top - 22, 60, 24, "#f4f7fb"); tri(x + 6, top - 16, 48, 16, "#dfe7f0"); R("#f4f7fb", x + 2, top - 2, 56, 4); R("#f4f7fb", x + 39, top - 28, 8, 3);
+      R("#ffd166", x + 14, top + 8, 10, 8); R("#3d2a1d", x + 18, top + 8, 1, 8); R("#3d2a1d", x + 14, top + 12, 10, 1); R("#3d2a1d", x + 36, top + 10, 10, GROUND - top - 10);
+      R("#f4f7fb", x + 2, GROUND - 5, 16, 5); R("#f4f7fb", x + 46, GROUND - 4, 14, 4); });
+    layer(.7, 120, x => { R("#3a3a44", x + 30, GROUND - 44, 2, 44); R("#3a3a44", x + 26, GROUND - 46, 10, 3); R("#ffe8b0", x + 27, GROUND - 43, 8, 4); R("#f4f7fb", x + 25, GROUND - 49, 12, 3); });
+    R("#f4f7fb", 0, GROUND, W, H); R("#dfe7f0", 0, GROUND, W, 2); layer(1, 12, (x, i) => R("#d5dfeb", x + Math.floor(rnd(i) * 8), GROUND + 6 + Math.floor(rnd(i + 2) * 22), 3, 1));
+    parts(40, P_SNOW, { vy: 14, vx: -6, par: .6 });
+  }},
+
+  desert: { name: "沙漠金字塔", draw(){
+    bands(["#3d7bd9", "#5b92df", "#7aa9e4", "#9cc0e8", "#bfd6ea", "#e6e2cc"]); circ(210, 24, 10, "#fff6c4"); circ(210, 24, 7, "#ffffff");
+    const pyr = (x, y, w, h) => { tri(x, y, w, h, "#d9a05b"); for (let k = 0; k < h; k++){ const ww = Math.max(1, Math.round(w * (k + 1) / h)); R("#b8804a", x + w / 2, y + k, ww / 2, 1); } };
+    layer(.08, 210, x => { pyr(x + 30, 48, 84, 46); pyr(x + 126, 64, 46, 30); });
+    layer(.15, 8, (x, i) => { const h = Math.round(hill(i * .7) * .7); R("#e3b873", x, 98 - h, 8, h + 20); });
+    layer(.6, 120, x => { const X = x + 40;
+      for (let k = 0; k < 10; k++) R("#8a5a3b", X + Math.round(Math.sin(k / 10 * 1.2) * 6), GROUND - 4 - k * 4, 3, 4);
+      const tx = X + 6, ty = GROUND - 44;
+      for (const [dx, dy] of [[-1, 0], [1, 0], [-1, .6], [1, .6], [0, -1], [-.5, -.8], [.5, -.8]]) for (let k = 1; k < 9; k++) R(k % 2 ? "#2f8f4a" : "#3fa65a", tx + dx * k * 1.7, ty + dy * k * 1.3 + (dx && dy >= 0 ? (k * k) / 12 : 0), 2, 2);
+      circ(tx + 1, ty + 2, 2, "#6b4a2b");
+      const C = x + 95; R("#4f9a5a", C, GROUND - 18, 4, 18); R("#4f9a5a", C - 5, GROUND - 13, 3, 6); R("#4f9a5a", C - 5, GROUND - 9, 5, 2); R("#4f9a5a", C + 6, GROUND - 15, 3, 7); R("#4f9a5a", C + 3, GROUND - 10, 5, 2); });
+    R("#e9c98b", 0, GROUND, W, H); R("#d4b072", 0, GROUND, W, 2); layer(1, 18, (x, i) => R("#d4b072", x, GROUND + 6 + m3(i) * 8, 10, 1));
+  }},
+
+  volcano: { name: "火山", draw(){
+    const tm = now();
+    bands(["#1a0a0a", "#2e0f0d", "#4a1510", "#6b1d12", "#8f2a14", "#b33b16"]);
+    layer(.03, 300, x => { const X = x + 60; tri(X, 30, 160, 80, "#2a1a1a"); R("#ff6b1a", X + 72, 30, 16, 3); g.globalAlpha = .25; circ(X + 80, 28, 14, "#ff6b1a"); g.globalAlpha = 1;
+      for (let k = 0; k < 30; k++) R("#ff6b1a", X + 78 + Math.round(Math.sin(k * .5) * 3) + k * .6, 32 + k * 2, 2, 2);
+      g.globalAlpha = .5; for (let k = 0; k < 5; k++){ const p = (tm * .08 + k / 5) % 1; circ(Math.round(X + 80 + p * 30), Math.round(24 - p * 28), 4 + Math.round(p * 8), "#3a2a2a"); } g.globalAlpha = 1; });
+    layer(.12, 8, (x, i) => { const h = hill(i); R("#241414", x, 98 - h, 8, h + 20); });
+    layer(.5, 58, (x, i) => { const X = x + 8, h = 18 + Math.floor(rnd(i) * 20); tri(X, GROUND - h, 30, h, "#3a2622"); tri(X + 18, GROUND - h + 8, 24, h - 8, "#2e1e1a");
+      g.globalAlpha = .6 + .4 * Math.sin(tm * 3 + i); R("#ff7b1c", X + 14, GROUND - h + 10, 1, 6); R("#ff7b1c", X + 15, GROUND - h + 16, 1, 5); g.globalAlpha = 1; });
+    R("#2b1d1a", 0, GROUND, W, H); R("#3d2a25", 0, GROUND, W, 2);
+    g.globalAlpha = .6 + .4 * Math.sin(tm * 2.5); layer(1, 36, (x, i) => { const y = GROUND + 8 + m3(i) * 6; R("#ff7b1c", x + 4, y, 14, 1); R("#ff7b1c", x + 17, y + 1, 6, 1); R("#ffd166", x + 8, y, 4, 1); }); g.globalAlpha = 1;
+    parts(24, P_EMBER, { vy: -16, vx: 3, par: .6 });
+  }},
+
+  underwater: { name: "海底宮殿", draw(){
+    const tm = now();
+    bands(["#2088ba", "#1878ab", "#13699a", "#0f5a88", "#0c4a75", "#0a3d62"]);
+    g.globalAlpha = .08; for (let k = 0; k < 5; k++){ const x0 = ((k * 60 - G.scroll * .05 + Math.sin(tm * .5 + k) * 6) % (W + 60) + W + 60) % (W + 60) - 30; for (let y = 0; y < GROUND; y += 2) R("#ffffff", x0 + y * .4, y, 10, 2); } g.globalAlpha = 1;
+    layer(.1, 190, x => { const X = x + 34, b = GROUND - 6, c = "#0d5070";
+      R(c, X, b - 40, 90, 40); circ(X + 45, b - 40, 18, c); R(c, X + 43, b - 66, 4, 10); for (let k = 0; k < 6; k++) R("#0a4560", X + 6 + k * 15, b - 36, 5, 36); R(c, X - 4, b - 44, 98, 4);
+      R(c, X - 8, b - 46, 10, 46); tri(X - 10, b - 64, 14, 18, c); R(c, X + 88, b - 46, 10, 46); tri(X + 86, b - 64, 14, 18, c); R("#3fc1c9", X + 42, b - 50, 6, 8); });
+    layer(.5, 40, (x, i) => { const h = 24 + Math.floor(rnd(i) * 30); for (let y = 0; y < h; y += 3){ const sw = Math.round(Math.sin(tm * 1.6 + y * .15 + i) * 2 * (y / h)); R("#2d9b6a", x + 8 + sw, GROUND - y - 3, 3, 3); }
+      if (rnd(i + 1) > .4){ const cc = pick(["#ff7f7f", "#ffa94d", "#c77dff"], rnd(i + 4)), X = x + 26; R(cc, X, GROUND - 10, 3, 10); R(cc, X - 4, GROUND - 14, 2, 6); R(cc, X - 4, GROUND - 9, 6, 2); R(cc, X + 5, GROUND - 16, 2, 8); R(cc, X + 2, GROUND - 10, 5, 2); } });
+    R("#d9c99a", 0, GROUND, W, H); R("#c4b383", 0, GROUND, W, 2); layer(1, 26, (x, i) => { if (rnd(i) > .5){ R("#f4a6b8", x + 6, GROUND + 10, 3, 2); R("#f4a6b8", x + 7, GROUND + 9, 1, 1); } R("#c4b383", x + 14, GROUND + 20, 6, 1); });
+    parts(18, P_BUBBLE, { vy: -12, par: .5 });
+  }},
+
+  icecave: { name: "冰雪洞窟", draw(){
+    const tm = now();
+    R("#16223d", 0, 0, W, H);
+    layer(.15, 30, (x, i) => { const h = 30 + Math.floor(rnd(i) * 40); R("#1e3157", x, GROUND - h, 30, h); tri(x + 4, GROUND - h - 10, 22, 10, "#1e3157"); });
+    layer(.4, 60, (x, i) => { const X = x + 14, h = 20 + Math.floor(rnd(i) * 22);
+      g.globalAlpha = .18; circ(X + 5, Math.round(GROUND - h / 2), 14, "#7ad7f0"); g.globalAlpha = 1;
+      tri(X, GROUND - h, 10, h, "#7ad7f0"); tri(X + 3, GROUND - h + 4, 4, h - 4, "#c9f2ff"); tri(X + 9, Math.round(GROUND - h * .6), 8, Math.round(h * .6), "#4fb3d9"); tri(X - 6, Math.round(GROUND - h * .5), 7, Math.round(h * .5), "#4fb3d9"); });
+    R("#2a4470", 0, 0, W, 8); layer(.4, 18, (x, i) => { const h = 6 + Math.floor(rnd(i) * 16); vtri(x + 4, 8, 8, h, "#a8e1f0"); });
+    R("#cfeefa", 0, GROUND, W, H); R("#a8e1f0", 0, GROUND, W, 2); layer(1, 30, (x, i) => { R("#ffffff", x + 4, GROUND + 6 + m3(i) * 7, 8, 1); R("#a8d8ea", x + 18, GROUND + 10, 1, 8); });
+    for (let k = 0; k < 16; k++){ if (Math.sin(tm * 3 + k * 1.7) < .7) continue; const px = (((k * 41 - G.scroll * .4) % W) + W) % W, py = (k * 29) % (GROUND - 16) + 10; R("#ffffff", px - 1, py, 3, 1); R("#ffffff", px, py - 1, 1, 3); }
+  }},
+
+  skycity: { name: "天空之城", draw(){
+    bands(["#5c8fe0", "#74a3e6", "#8db7ec", "#a8caf1", "#c4dcf6", "#e2eefa"]);
+    layer(.07, 150, (x, i) => { const X = x + 20, y = 24 + Math.floor(rnd(i) * 26), w = 40 + Math.floor(rnd(i + 1) * 30);
+      R("#6ab04c", X, y, w, 4); R("#8a6a4a", X, y + 4, w, 5); vtri(X + 2, y + 9, w - 4, 16, "#7a5a3a");
+      if (rnd(i + 2) > .4){ R("#f4efe6", X + 8, y - 10, 12, 10); tri(X + 6, y - 16, 16, 6, "#c8553d"); } R("#3fa65a", X + w - 12, y - 8, 6, 8);
+      g.globalAlpha = .7; R("#d6efff", X + w - 7, y + 6, 3, 44); g.globalAlpha = 1; });
+    layer(.2, 24, (x, i) => circ(x + 12, 98 + Math.floor(rnd(i) * 4), 10, "#e8f1fb")); R("#e8f1fb", 0, 104, W, H);
+    layer(.5, 90, (x, i) => { if (rnd(i) < .3) return; const X = x + 30, h = 24 + Math.floor(rnd(i + 3) * 22);
+      R("#ece6d6", X, GROUND - h, 10, h); R("#d6ccb6", X + 8, GROUND - h, 2, h); R("#f4efe6", X - 2, GROUND - h - 3, 14, 3); for (let k = 0; k < h; k += 4) R("#6ab04c", X + 3 + Math.round(Math.sin(k) * 2), GROUND - h + k, 2, 2); });
+    R("#cfc6b0", 0, GROUND, W, 10); R("#6ab04c", 0, GROUND, W, 2); layer(1, 16, x => R("#b5ab93", x, GROUND + 2, 1, 8)); R("#a8997c", 0, GROUND + 10, W, 3);
+    layer(1.2, 24, (x, i) => circ(x + 12, GROUND + 22 + Math.floor(rnd(i + 9) * 4), 10, "#ffffff")); R("#ffffff", 0, GROUND + 26, W, H);
+  }},
+
+  demoncastle: { name: "魔王城", draw(){
+    const tm = now();
+    bands(["#140818", "#1f0c26", "#2c1036", "#3a1444", "#4a1850", "#5a1d5c"]);
+    for (let i = 0; i < 10; i++) R("#d9c2e0", (i * 71 + 19) % W, (i * 17) % 34, 1, 1);
+    circ(196, 32, 14, "#e63946"); circ(191, 28, 3, "#c1121f"); circ(202, 37, 2, "#c1121f");
+    layer(.04, 320, (x, i) => { const X = x + 40, c = "#0d0510"; R(c, X, 50, 130, 50);
+      for (const [tx, tw, th] of [[-10, 18, 70], [30, 14, 80], [58, 22, 96], [100, 14, 76], [128, 18, 66]]){ R(c, X + tx, 100 - th, tw, th); tri(X + tx - 2, 100 - th - 14, tw + 4, 14, c); }
+      for (let k = 0; k < 14; k++) if (rnd(i * 13 + k) > .35) R(Math.sin(tm * 2 + k) > -.3 ? "#ffb703" : "#7a1f1f", X + Math.floor(rnd(k + i) * 130) - 5, 40 + Math.floor(rnd(k * 3 + i) * 50), 2, 3); });
+    layer(.1, 8, (x, i) => { const h = hill(i) - 4; R("#1a0c1e", x, 100 - h, 8, h + 20); });
+    layer(.5, 110, x => { const X = x + 30; R("#120814", X, GROUND - 40, 4, 40);
+      for (const [dx, dy, len, dir] of [[0, -36, 12, -1], [4, -30, 14, 1], [0, -22, 9, -1], [4, -16, 8, 1]]) for (let k = 0; k < len; k++) R("#120814", X + dx + dir * k, GROUND + dy - Math.floor(k / 2), 2, 2); });
+    R("#1b1020", 0, GROUND - 16, W, 2); R("#1b1020", 0, GROUND - 6, W, 2); layer(.7, 10, x => { R("#1b1020", x, GROUND - 20, 2, 20); tri(x - 1, GROUND - 24, 4, 4, "#1b1020"); });
+    const fl = tm % 9; if (fl < .08 || (fl > .16 && fl < .22)){ g.globalAlpha = .35; R("#ffffff", 0, 0, W, H); g.globalAlpha = 1; }
+    R("#2a1f30", 0, GROUND, W, H); R("#3d2d45", 0, GROUND, W, 2);
+    g.globalAlpha = .6 + .4 * Math.sin(tm * 2); layer(1, 40, (x, i) => { const y = GROUND + 10 + m3(i) * 6; R("#9d4edd", x + 6, y, 10, 1); R("#9d4edd", x + 15, y + 1, 1, 3); }); g.globalAlpha = 1;
+    parts(6, (x, y, k, t) => { if (y > 70) return; const f = Math.floor(t * 8 + k) % 2; R("#0d0510", x, y, 1, 1); R("#0d0510", x - 2, y - f, 2, 1); R("#0d0510", x + 1, y - f, 2, 1); }, { vy: 1, vx: -14, par: .3 });
+  }},
+});
+
+/* ---------- 關卡順序：前 22 關是手工畫的背景，一關一種、不重複，像一趟從錄音室出發、越走越遠的冒險 ---------- */
+const HAND = ["studio", "street", "oldstreet", "nightmarket", "temple", "mrt", "ricefield", "school", "rooftop", "shrine", "festival",
+              "summer", "onsen", "snowtown", "forest", "desert", "volcano", "underwater", "icecave", "skycity", "dungeon", "demoncastle"];
+
+/* ---------- 第 23 關以後：程式自動組出新場景 ----------
+   遠景 5 種 × 中景 7 種 × 地面 6 種 × 天氣 6 種 × 時段 3 種＝3780 種組合，每一關取不同的組合（不會重複），
+   配色也依關數變化。名字也是自動組的，例如「浮島雪原的水晶谷（深夜・飄雪）」，同樣每一關都不同。 */
+const GEN = { FAR: ["群山", "尖塔", "浮島", "台地", "廢都"], MID: ["樹林", "針葉林", "巨菇森林", "水晶谷", "遺跡", "亂石原", "小村"],
+  GROUND: ["草原", "石板路", "沙丘", "雪原", "木棧道", "苔磚路"],
+  WEATHER: ["", "飄雪", "下雨", "落花", "螢火蟲", "火星飛散"], TIME: ["晴空", "黃昏", "深夜"], cache: {} };
+function genScene(f){
+  if (GEN.cache[f]) return GEN.cache[f];
+  const N = 5 * 7 * 6 * 6 * 3, k = f - HAND.length - 1;
+  let idx = ((k * 1531 + 7) % N + N) % N;                              // 1531 跟 3780 互質 → 前 3780 個生成關卡的組合都不同
+  const far = idx % 5; idx = Math.floor(idx / 5); const mid = idx % 7; idx = Math.floor(idx / 7);
+  const gr = idx % 6; idx = Math.floor(idx / 6); const wx = idx % 6; idx = Math.floor(idx / 6); const tod = idx % 3;
+  const h = [165 + rnd(f * 13.7) * 120, 260 + rnd(f * 13.7) * 130, 200 + rnd(f * 13.7) * 100][tod], h2 = h + 90 + Math.floor(rnd(f * 7.3) * 180), h3 = h + Math.floor(rnd(f * 3.1) * 360);
+  const L = (d, du, n) => [d, du, n][tod];
+  const sky = [0, 1, 2, 3, 4, 5].map(n => tod === 0 ? hsl(h, 55, 50 + n * 7) : tod === 1 ? hsl(h + n * 12, 50 + n * 6, 20 + n * 10) : hsl(h, 45, 6 + n * 3));
+  const fc = hsl(h2, 25, L(68, 34, 16)), fc2 = hsl(h2, 25, L(60, 28, 12));
+  const mc = hsl(h3, 40, L(38, 24, 12)), mc2 = hsl(h3, 45, L(50, 34, 20)), acc = hsl(h3 + 180, 75, L(62, 60, 58)), win = hsl(h + 40, 85, 72);
+  const gc = gr === 3 ? hsl(h2, 30, 92) : hsl(h2 + 30, 35, L(46, 32, 20)), gc2 = gr === 3 ? hsl(h2, 30, 82) : hsl(h2 + 30, 35, L(36, 24, 14)), gtop = gr === 0 ? hsl(110 + (h % 60), 45, L(48, 34, 22)) : gc2;
+  const name = `未知領域：${GEN.FAR[far]}${GEN.GROUND[gr]}的${GEN.MID[mid]}（${GEN.TIME[tod]}${wx ? "・" + GEN.WEATHER[wx] : ""}）`;
+  const sc = { name, draw(){
+    const tm = now();
+    bands(sky);
+    if (tod === 0){ circ(205, 24, 9, "#fff6c4"); layer(.04, 130, (x, i) => { const y = 14 + Math.floor(rnd(i + f) * 20); R("#ffffff", x + 10, y, 34, 6); R("#ffffff", x + 18, y - 4, 18, 4); }); }
+    else if (tod === 1) circ(200, 62, 12, hsl(h + 50, 90, 72));
+    else { for (let i = 0; i < 20; i++) R("#ffffff", (i * 53 + f * 7) % W, (i * 29 + f) % 60, 1, 1); circ(200, 24, 7, "#f1f1e6"); circ(203, 22, 6, sky[0]); }
+    // 遠景
+    if (far === 0) layer(.06, 8, (x, i) => { const hh = hill(i * 1.3 + f) + 10; R(fc, x, 92 - hh, 8, hh + 20); });
+    else if (far === 1) layer(.08, 22, (x, i) => { const hh = 30 + Math.floor(rnd(i + f) * 40); R(fc, x + 6, 98 - hh, 10, hh); tri(x + 4, 98 - hh - 14, 14, 14, fc); });
+    else if (far === 2) layer(.06, 90, (x, i) => { const y = 24 + Math.floor(rnd(i + f) * 30), w = 24 + Math.floor(rnd(i * 2 + f) * 30); R(fc, x, y, w, 4); vtri(x, y + 4, w, 12, fc2); });
+    else if (far === 3) layer(.07, 40, (x, i) => { const hh = 20 + Math.floor(rnd(i + f) * 30), w = 24 + Math.floor(rnd(i * 3 + f) * 12); R(fc, x, 98 - hh, w, hh); R(fc2, x, 98 - hh, w, 2); });
+    else layer(.1, 20, (x, i) => { const hh = 24 + Math.floor(rnd(i + f) * 46); R(fc, x, 98 - hh, 18, hh); if (tod) for (let wy = 98 - hh + 4; wy < 94; wy += 6) if (rnd(i * 5 + wy + f) > .6) R(win, x + 4 + (wy % 8), wy, 3, 2); });
+    R(fc2, 0, 96, W, GROUND - 96);
+    // 中景
+    layer(.45, 50, (x, i) => {
+      const r = rnd(i * 7 + f), X = x + 10 + Math.floor(r * 20);
+      if (mid === 0){ R(mc, X + 8, GROUND - 16, 4, 16); circ(X + 10, GROUND - 26, 10 + Math.floor(r * 4), mc2); circ(X + 6, GROUND - 30, 4, acc); }
+      else if (mid === 1){ R(mc, X + 8, GROUND - 8, 3, 8); tri(X, GROUND - 40, 19, 18, mc2); tri(X - 2, GROUND - 28, 23, 20, mc); }
+      else if (mid === 2){ R("#efe6d6", X + 8, GROUND - 20, 6, 20); circ(X + 11, GROUND - 22, 12, acc); R(fc2, X - 2, GROUND - 22, 26, 13); R("#efe6d6", X + 8, GROUND - 22, 6, 2); R("#ffffff", X + 5, GROUND - 30, 3, 3); R("#ffffff", X + 14, GROUND - 28, 3, 3); }
+      else if (mid === 3){ const hh = 16 + Math.floor(r * 22); g.globalAlpha = .2; circ(X + 6, GROUND - hh / 2, 12, acc); g.globalAlpha = 1; tri(X, GROUND - hh, 12, hh, acc); tri(X + 4, GROUND - hh + 4, 4, hh - 4, "#ffffff"); tri(X + 10, Math.round(GROUND - hh * .6), 8, Math.round(hh * .6), mc2); }
+      else if (mid === 4){ const hh = 18 + Math.floor(r * 24); R(mc2, X, GROUND - hh, 10, hh); R(mc, X + 8, GROUND - hh, 2, hh); R(mc2, X - 2, GROUND - hh - 3, 14, 3); if (r > .5) R(mc2, X + 14, GROUND - 6, 10, 6); }
+      else if (mid === 5){ const hh = 10 + Math.floor(r * 18); tri(X, GROUND - hh, 26, hh, mc2); tri(X + 14, GROUND - hh + 6, 18, hh - 6, mc); }
+      else { R(mc2, X, GROUND - 18, 24, 18); tri(X - 3, GROUND - 30, 30, 12, mc); R(tod ? win : "#ffffff", X + 4, GROUND - 13, 5, 5); R(mc, X + 14, GROUND - 12, 6, 12); }
+    });
+    // 地面
+    R(gc, 0, GROUND, W, H); R(gtop, 0, GROUND, W, gr === 0 ? 4 : 2);
+    if (gr === 0) layer(1, 14, (x, i) => R(gc2, x + Math.floor(rnd(i + f) * 10), GROUND + 8 + Math.floor(rnd(i * 3 + f) * 20), 3, 2));
+    else if (gr === 1){ layer(1, 20, x => R(gc2, x, GROUND + 2, 1, 30)); R(gc2, 0, GROUND + 14, W, 1); }
+    else if (gr === 2) layer(1, 18, (x, i) => R(gc2, x, GROUND + 6 + m3(i) * 8, 10, 1));
+    else if (gr === 3) layer(1, 12, (x, i) => R(gc2, x + Math.floor(rnd(i) * 8), GROUND + 6 + Math.floor(rnd(i + 2) * 22), 3, 1));
+    else if (gr === 4){ layer(1, 8, x => R(gc2, x, GROUND, 1, 12)); R(gc2, 0, GROUND + 12, W, 2); R(fc2, 0, GROUND + 14, W, H); }
+    else { for (let r = 0; r < 4; r++){ const off = ((G.scroll + (r % 2) * 8) % 16 + 16) % 16; for (let x = -16; x < W + 16; x += 16) R(gc2, x - off, GROUND + 2 + r * 8, 1, 8); R(gc2, 0, GROUND + 9 + r * 8, W, 1); } layer(1, 22, (x, i) => { if (rnd(i + f) > .5) R(hsl(110, 40, L(40, 30, 20)), x + 4, GROUND + 2, 6, 2); }); }
+    // 天氣
+    if (wx === 1) parts(40, P_SNOW, { vy: 14, vx: -6, par: .6 });
+    else if (wx === 2) parts(50, P_RAIN, { vy: 120, vx: -20, par: .6 });
+    else if (wx === 3) parts(26, P_PETAL, { vy: 14, vx: -16, par: .9 });
+    else if (wx === 4) parts(18, P_FIRE, { vy: 3, vx: 4, par: .5 });
+    else if (wx === 5) parts(24, P_EMBER, { vy: -16, vx: 3, par: .6 });
+  }};
+  return (GEN.cache[f] = sc);
+}
+// 每個場景配的背景音樂；第 23 關以後的未知領域輪流用各種曲子
+const BGM_OF = { studio: "field", street: "field", oldstreet: "field", nightmarket: "festival", temple: "festival", mrt: "field", ricefield: "pastoral",
+  school: "pastoral", rooftop: "field", shrine: "japan", festival: "festival", summer: "pastoral", onsen: "japan", snowtown: "japan", forest: "pastoral",
+  desert: "fantasy", volcano: "fantasy", underwater: "fantasy", icecave: "fantasy", skycity: "fantasy", dungeon: "dark", demoncastle: "dark" };
+const GEN_BGM = ["fantasy", "field", "pastoral", "festival", "japan", "dark"];
+const bgmFor = f => f <= HAND.length ? (BGM_OF[HAND[f - 1]] || "field") : GEN_BGM[f % GEN_BGM.length];
+const bossBgmFor = f => (f === HAND.length || (f > HAND.length && f % 10 === 0)) ? "final" : "boss";   // 魔王城和之後每 10 關的頭目用魔王曲
+function sceneFor(floor){ return floor <= HAND.length ? BGS[HAND[floor - 1]] : genScene(floor); }
+
+
+function draw(){
+  g.imageSmoothingEnabled = false;
+  sceneFor(SAVE.floor).draw();
+  // 主角隊伍：鳳梨索在後、二百五在前
+  const f = G.moving ? Math.floor(G.t * 7) % 2 : 0, flash = G.heroHurt > 0 && Math.floor(G.heroHurt * 14) % 2;
+  const sx = G.heroHurt > 0 ? Math.round(Math.sin(G.heroHurt * 40) * 2) : 0;
+  const hop = G.phase === "clear" ? Math.round(Math.abs(Math.sin(G.clearT * 7)) * 5) : 0, sink = G.down ? Math.round(G.down * 5) : 0;
+  if (!(G.down >= 1 && Math.floor(G.t * 3) % 2)){
+    sprite(PAL[f], PAL_X - 12 + sx, GROUND - 32 - (G.phase === "clear" ? Math.round(Math.abs(Math.sin(G.clearT * 7 + 1)) * 5) : 0) + sink, 2, flash);
+    sprite(HERO[f], HERO_X - 12 + Math.round(lunge(G.heroLunge)) + sx, GROUND - 32 - hop + sink, 2, flash);
+  }
+  if (G.levelUp > 0){ g.fillStyle = "#fee761"; for (let i = 0; i < 6; i++){ const a = i * 1.05 + G.levelUp * 4; g.fillRect(Math.round(HERO_X - 12 + Math.cos(a) * 26), Math.round(GROUND - 18 + Math.sin(a) * 20), 2, 2); } }
+  const m = G.mon;                                                         // 怪物
+  if (m && !(m.dead && Math.floor(m.dead * 12) % 2)){
+    const map = MON[m.type], s = m.boss ? 3 : 2, w = map[0].length * s, h = map.length * s;
+    const fly = FLYING[m.type] ? 10 + Math.round(Math.sin(G.t * 4) * 3) : 0;
+    const squash = !FLYING[m.type] && Math.floor(G.t * 3) % 2 ? 1 : 0;
+    const mx = Math.round(m.x - w / 2 - lunge(G.monLunge) * 2.2 + (m.hurt > 0 ? Math.sin(m.hurt * 40) * 3 : 0));
+    const my = Math.round(GROUND - h - fly + squash + (m.dead ? m.dead * 6 : 0));
+    sprite(map, mx, my, s, m.hurt > 0.6);
+    if (m.boss) sprite(CROWN, mx + w / 2 - 7, my - 7, 2, false);
+    const bx = Math.round(mx + w / 2), by = my - (m.boss ? 14 : 7);
+    g.fillStyle = "#000"; g.fillRect(bx - 16, by, 32, 4); g.fillStyle = "#e43b44"; g.fillRect(bx - 15, by + 1, Math.max(0, Math.round(30 * m.hp / m.max)), 2);
+  }
+  if (G.chest){                                                            // 寶箱：落地後打開、冒出光點
+    const c = G.chest, open = c.t > .45, cx = Math.round(c.x - 8), cy = GROUND - 12 - (c.t < .3 ? Math.round((.3 - c.t) * 60) : 0);
+    sprite(open ? CHEST[1] : CHEST[0], cx, cy, 2, false);
+    if (open){ g.fillStyle = "#fee761"; for (let k = 0; k < 6; k++){ const a = k * 1.05 + c.t * 3, r = 6 + (c.t - .45) * 30; g.fillRect(Math.round(c.x + Math.cos(a) * r), Math.round(cy - 2 + Math.sin(a) * r * .6 - (c.t - .45) * 14), 2, 2); } }
+  }
+  if (G.combo > 1){                                                        // 連擊數
+    const pulse = G.comboT > 0 ? 1 + G.comboT * .15 : 1, crit = G.combo >= critAt();
+    g.font = `${Math.round(8 * pulse)}px "Press Start 2P",monospace`; g.textAlign = "left"; g.textBaseline = "top";
+    const t = G.combo + " COMBO"; g.fillStyle = "#000"; [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1]].forEach(([dx, dy]) => g.fillText(t, 6 + dx, 6 + dy));
+    g.fillStyle = crit ? "#ff7b1c" : "#fee761"; g.fillText(t, 6, 6);
+  }
+  if (G.hit){ g.fillStyle = G.hit.big ? "#ffd166" : "#fff"; const r = (G.hit.big ? 6 : 4) + G.hit.t * (G.hit.big ? 44 : 30); for (let i = 0; i < 8; i++){ const a = i * Math.PI / 4; g.fillRect(Math.round(G.hit.x + Math.cos(a) * r), Math.round(G.hit.y + Math.sin(a) * r), 3, 3); } }
+  g.font = '8px "Press Start 2P",monospace'; g.textAlign = "center"; g.textBaseline = "alphabetic";
+  G.fx.forEach(fx => { const x = Math.round(Math.max(30, fx.x)), y = Math.round(fx.y - fx.t * 18);
+    g.fillStyle = "#000"; [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1]].forEach(([dx, dy]) => g.fillText(fx.text, x + dx, y + dy)); g.fillStyle = fx.color; g.fillText(fx.text, x, y); });
+}
+function makeIcons(){
+  Object.entries(ITEM_ART).forEach(([id, map]) => { const c = document.createElement("canvas"); c.width = 8; c.height = 8; const x = c.getContext("2d");
+    map.forEach((row, r) => [...row].forEach((ch, k) => { if (ch === ".") return; x.fillStyle = C[ch]; x.fillRect(k, r, 1, 1); })); ICON[id] = c.toDataURL(); });
+}
+function checkSprites(){
+  [HERO, PAL].forEach(fr => fr.forEach(mp => mp.forEach(r => { if (r.length !== 12) console.error("角色圖有一列長度不對", r); })));
+  Object.entries(MON).forEach(([k, mp]) => mp.forEach(r => { if (r.length !== 16) console.error("怪物圖有一列長度不對", k, r); }));
+}
+
+let last = 0;
+function frame(ts){
+  const dt = Math.min(.05, (ts - last) / 1000 || 0); last = ts;
+  update(RMOTION ? dt * 3 : dt); draw();
+  requestAnimationFrame(frame);
+}
+
+/* ---------- 匿名答錯率統計（GoatCounter，只有節目帳號登入後台才看得到；config.json 的 goatcounter 空白就不統計） ---------- */
+function loadCounter(code){
+  if (!code || !/^[a-z0-9-]+$/i.test(code)) return;
+  const s = document.createElement("script"); s.async = true; s.src = "https://gc.zgo.at/count.js";
+  s.dataset.goatcounter = `https://${code}.goatcounter.com/count`;
+  s.dataset.goatcounterSettings = JSON.stringify({ no_onload: true });                  // 不記瀏覽人次
+  document.head.appendChild(s);
+}
+function countAnswer(q, ok){
+  try { if (window.goatcounter && window.goatcounter.count) window.goatcounter.count({ path: `QA大冒險/${ok ? "答對" : "答錯"}/${q.id}`, title: q.q.slice(0, 60), event: true }); } catch (e) {}
+}
+
+/* ---------- 載入題庫 ---------- */
+fetch("questions.json?v=" + Math.floor(Date.now() / 3600000)).then(r => { if (!r.ok) throw 0; return r.json(); }).then(d => {
+  QUESTIONS = (d.questions || []).filter(q => q && q.q && Array.isArray(q.a) && q.a.length === 4);
+  if (!QUESTIONS.length) throw 0;
+  DB = d; loadCounter(d.gc); if (d.built) $("#built").textContent = "・題庫更新：" + d.built + (d.pending ? `（其中 ${d.pending} 題主持人還在審核中）` : "");
+  checkSprites(); makeIcons(); title(); requestAnimationFrame(frame);
+}).catch(() => { say('<p class="sub">題庫還在準備中，晚點再來！</p>'); });
+</script>
+</body>
+</html>
